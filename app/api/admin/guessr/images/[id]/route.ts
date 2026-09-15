@@ -8,6 +8,8 @@ import { getAdminDb } from '@/lib/server/firebase-admin';
 import { imagePatchSchema } from '@/lib/server/guessr-schema';
 import { imageFromDoc } from '@/lib/server/serializers';
 
+export const runtime = "nodejs";
+
 type Context = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, context: Context) {

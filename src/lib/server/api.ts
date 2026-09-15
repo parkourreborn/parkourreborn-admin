@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { NextResponse } from 'next/server';
 import { AdminAuthError } from '@/lib/server/admin-auth';
 

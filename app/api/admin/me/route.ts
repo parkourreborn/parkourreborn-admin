@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiError } from '@/lib/server/api';
 import { requireAdmin } from '@/lib/server/admin-auth';
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   try {
     const { admin } = await requireAdmin(request.headers.get('authorization'), 'overview.view');

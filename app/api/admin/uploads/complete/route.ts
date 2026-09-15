@@ -8,6 +8,8 @@ import { getAdminDb } from '@/lib/server/firebase-admin';
 import { imageFromDoc } from '@/lib/server/serializers';
 import { verifyUpload } from '@/lib/server/r2';
 
+export const runtime = "nodejs";
+
 const schema = z.object({ uploadId: z.string().uuid() });
 const maxBytes = 4 * 1024 * 1024;
 

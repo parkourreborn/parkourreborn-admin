@@ -7,6 +7,8 @@ import { writeAudit } from '@/lib/server/audit';
 import { getAdminAuth, getAdminDb } from '@/lib/server/firebase-admin';
 import { rolePermissions } from '@/lib/roles';
 
+export const runtime = "nodejs";
+
 const schema = z.object({
   role: z.enum(['admin', 'editor', 'viewer']).optional(),
   disabled: z.boolean().optional(),

@@ -1,8 +1,10 @@
 import { randomBytes } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextRequest, NextResponse } from 'next/server';
-import { bootstrapSuperadmin, loadAdmin } from '@/lib/server/admin-auth';
+import { AdminAuthError, bootstrapSuperadmin, loadAdmin } from '@/lib/server/admin-auth';
 import { getAdminAuth, getAdminDb } from '@/lib/server/firebase-admin';
+
+export const runtime = "nodejs";
 
 type DiscordUser = {
   id: string;
@@ -110,9 +112,13 @@ export async function GET(request: NextRequest) {
       path: '/',
     });
     return response;
-  } catch {
-    const response = NextResponse.redirect(redirect(request, 'denied'));
+  } catch (error) {
+    const destination = error instanceof AdminAuthError
+      ? new URL('https://parkourreborn.com')
+      : redirect(request, 'error');
+    const response = NextResponse.redirect(destination);
     response.cookies.delete('admin_discord_oauth_state');
+    response.cookies.delete('admin_discord_login');
     return response;
   }
 }

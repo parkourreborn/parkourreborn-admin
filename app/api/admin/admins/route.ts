@@ -8,6 +8,8 @@ import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { rolePermissions } from '@/lib/roles';
 
+export const runtime = "nodejs";
+
 const createSchema = z.object({
   uid: z.string().trim().min(1).max(128),
   role: z.enum(['admin', 'editor', 'viewer']),

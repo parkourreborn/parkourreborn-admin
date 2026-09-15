@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Gamepad2, Gauge, ImageIcon, LockKeyhole, LogOut, Menu, Shield, X } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import SetupStrip from '@/components/setup-strip';
@@ -16,11 +16,37 @@ const pathTitle = (pathname: string) => {
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { admin, loading, busy, error, can, login, logout } = useAuth();
+  const { user, admin, loading, busy, error, can, login, logout } = useAuth();
+  const loginAttempted = useRef(false);
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [gamesOpen, setGamesOpen] = useState(pathname.startsWith('/games'));
   const [adminOpen, setAdminOpen] = useState(pathname.startsWith('/admins'));
+
+  useEffect(() => {
+    if (loading || user || admin || busy || error || loginAttempted.current) return;
+    loginAttempted.current = true;
+    void login();
+  }, [admin, busy, error, loading, login, user]);
+
+  if (!admin) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#05080d] p-6">
+        <section className="panel w-full max-w-md p-8 text-center" aria-live="polite">
+          <img className="mx-auto mb-6 size-16 object-contain" src="/logo/logo.webp" alt="Parkour Reborn" />
+          <LockKeyhole className="mx-auto mb-4 size-8 text-accent" />
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent">Restricted access</p>
+          <h1 className="mt-2 font-display text-2xl font-semibold uppercase tracking-wider">Admin sign-in required</h1>
+          <p className="mt-3 text-muted">
+            {loading || busy ? 'Checking access and opening Discord sign-in…' : error || 'Opening Discord sign-in…'}
+          </p>
+          {!loading && !busy && error && !user && (
+            <button className="btn btn-primary mt-6" onClick={() => void login()}>Try Discord sign-in again</button>
+          )}
+        </section>
+      </main>
+    );
+  }
 
   const linkClass = (active: boolean, child = false) => `group flex min-h-11 items-center gap-3 border-l-2 px-3 font-display text-sm font-semibold uppercase tracking-[0.11em] transition ${child ? 'ml-4' : ''} ${active ? 'border-accent bg-accent/10 text-white' : 'border-transparent text-slate-400 hover:border-accent/50 hover:bg-white/[0.035] hover:text-white'}`;
   const sidebarClass = `${collapsed ? 'lg:w-[84px]' : 'lg:w-[270px]'} fixed inset-y-0 left-0 z-40 flex w-[286px] flex-col border-r border-accent/20 bg-[#070b11]/[0.98] p-4 shadow-2xl transition-[width,transform] duration-200 ${navOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;

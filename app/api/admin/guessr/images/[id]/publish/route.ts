@@ -6,6 +6,8 @@ import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { imageFromDoc } from '@/lib/server/serializers';
 
+export const runtime = "nodejs";
+
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: Context) {

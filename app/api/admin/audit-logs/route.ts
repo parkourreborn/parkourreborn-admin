@@ -4,6 +4,8 @@ import { requireAdmin } from '@/lib/server/admin-auth';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { auditFromDoc } from '@/lib/server/serializers';
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request.headers.get('authorization'), 'overview.view');

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { hasFirebaseAdminEnv } from '@/lib/server/firebase-admin';
 import { hasR2Env } from '@/lib/server/r2';
 
+export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
 
 export async function GET() {

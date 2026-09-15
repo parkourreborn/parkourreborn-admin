@@ -3,6 +3,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 
+export const runtime = "nodejs";
+
 const maxAge = 10 * 60;
 
 export async function POST() {

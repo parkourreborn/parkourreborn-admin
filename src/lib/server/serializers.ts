@@ -1,3 +1,5 @@
+import 'server-only';
+
 import type { DocumentSnapshot } from 'firebase-admin/firestore';
 import type { AuditEntry, GuessrImage } from '@/lib/types';
 

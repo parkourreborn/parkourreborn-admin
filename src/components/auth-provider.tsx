@@ -1,11 +1,13 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithCustomToken, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { getClientAuth, hasFirebaseConfig } from '@/lib/firebase';
 import type { AdminProfile, Permission } from '@/lib/types';
+
+const publicSiteUrl = 'https://parkourreborn.com';
 
 export type SetupStatus = { firebaseClient: boolean; firebaseAdmin: boolean; discord: boolean; r2: boolean; map: boolean };
 
@@ -25,6 +27,7 @@ type AuthValue = {
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const redirecting = useRef(false);
   const [user, setUser] = useState<User | null>(null);
   const [admin, setAdmin] = useState<AdminProfile | null>(null);
   const [setup, setSetup] = useState<SetupStatus | null>(null);
@@ -40,8 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = await nextUser.getIdToken();
     const response = await fetch('/api/admin/me', { headers: { authorization: `Bearer ${token}` } });
     const data = await response.json() as { admin?: AdminProfile; error?: string };
+    if (response.status === 401 || response.status === 403) {
+      redirecting.current = true;
+      await signOut(getClientAuth()).catch(() => undefined);
+      setUser(null);
+      setAdmin(null);
+      window.location.replace(publicSiteUrl);
+      return false;
+    }
     if (!response.ok || !data.admin) throw new Error(data.error || 'Admin access denied');
     setAdmin(data.admin);
+    return true;
   }, []);
 
   useEffect(() => {
@@ -54,6 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     const boot = async () => {
+      const callbackStatus = new URLSearchParams(window.location.search).get('auth');
+      const callbackError = callbackStatus === 'expired'
+        ? 'Discord sign-in expired. Please try again.'
+        : callbackStatus === 'error'
+          ? 'Discord sign-in could not be completed.'
+          : '';
+
       try {
         await setPersistence(auth, browserLocalPersistence);
         const response = await fetch('/api/auth/discord/session', { method: 'POST' });
@@ -67,15 +86,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!active) return;
       stop = onAuthStateChanged(auth, async (nextUser) => {
+        if (redirecting.current) return;
         setUser(nextUser);
         setAdmin(null);
-        setError('');
+        setError(nextUser ? '' : callbackError);
+        let finishLoading = true;
         try {
-          if (nextUser) await loadAdmin(nextUser);
+          if (nextUser) finishLoading = await loadAdmin(nextUser);
         } catch (nextError) {
           setError(nextError instanceof Error ? nextError.message : 'Admin access denied');
         } finally {
-          setLoading(false);
+          if (finishLoading) setLoading(false);
         }
       });
     };
@@ -112,10 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     if (!hasFirebaseConfig) return;
     setBusy(true);
+    redirecting.current = true;
     await signOut(getClientAuth()).catch(() => undefined);
     setUser(null);
     setAdmin(null);
-    setBusy(false);
+    window.location.replace(publicSiteUrl);
   };
 
   const value = useMemo<AuthValue>(() => ({

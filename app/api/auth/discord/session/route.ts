@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadAdmin } from '@/lib/server/admin-auth';
 import { getAdminAuth, getAdminDb } from '@/lib/server/firebase-admin';
 
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     const login = request.cookies.get('admin_discord_login')?.value;

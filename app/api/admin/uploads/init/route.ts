@@ -8,6 +8,8 @@ import { getAdminDb } from '@/lib/server/firebase-admin';
 import { imageMetaSchema } from '@/lib/server/guessr-schema';
 import { presignUpload } from '@/lib/server/r2';
 
+export const runtime = "nodejs";
+
 const maxBytes = 4 * 1024 * 1024;
 const requestSchema = imageMetaSchema.extend({
   fileName: z.string().trim().min(1).max(180),
