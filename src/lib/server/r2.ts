@@ -30,13 +30,19 @@ export const hasR2Env = () => Boolean(
   && process.env.R2_PUBLIC_BASE_URL,
 );
 
-export async function presignUpload(key: string, bytes: number) {
+const safeKey = (key: string) => {
+  if (!/^(guessr\/images|gifs)\/[a-z0-9][a-z0-9._-]*$/i.test(key) || key.includes('..') || key.includes('\\')) throw new Error('Object key is invalid');
+};
+
+export async function presignUpload(key: string, bytes: number, contentType = 'image/webp') {
+  safeKey(key);
   const config = env();
-  const command = new PutObjectCommand({ Bucket: config.bucket, Key: key, ContentType: 'image/webp', ContentLength: bytes });
+  const command = new PutObjectCommand({ Bucket: config.bucket, Key: key, ContentType: contentType, ContentLength: bytes });
   return getSignedUrl(client(), command, { expiresIn: 90 });
 }
 
 export async function verifyUpload(key: string) {
+  safeKey(key);
   const config = env();
   const result = await client().send(new HeadObjectCommand({ Bucket: config.bucket, Key: key }));
   return {
@@ -46,8 +52,9 @@ export async function verifyUpload(key: string) {
   };
 }
 
-export async function deleteR2Object(key: string) {
-  if (!key.startsWith('guessr/images/')) throw new Error('Image object key is invalid');
+export async function deleteR2Object(key: string, requiredPrefix: 'guessr/images/' | 'gifs/' = 'guessr/images/') {
+  safeKey(key);
+  if (!key.startsWith(requiredPrefix)) throw new Error('Object key is outside the allowed folder');
   const config = env();
   await client().send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
 }

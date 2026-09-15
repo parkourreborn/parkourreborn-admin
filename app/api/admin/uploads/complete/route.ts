@@ -15,10 +15,10 @@ const maxBytes = 4 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'guessr.images.upload');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'guessr.images.create');
     const { uploadId } = schema.parse(await request.json());
     const db = getAdminDb();
-    const sessionRef = db.collection('rateLimits').doc(`guessr-upload-session-${uploadId}`);
+    const sessionRef = db.collection('rateLimits').doc(`upload-session-guessr-${uploadId}`);
     const session = await sessionRef.get();
     const data = session.data();
     if (!session.exists || data?.uid !== admin.uid || Number(data.expiresAtMs || 0) < Date.now()) {

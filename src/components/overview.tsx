@@ -1,83 +1,69 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { ArrowRight, Gamepad2, Images, Layers3, MapPinned, ShieldCheck, Upload } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, Bell, ImageIcon, ListChecks, ScrollText, Timer } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import AccessState from '@/components/access-state';
-import PageHead from '@/components/page-head';
+import Announcements from '@/components/announcements';
+import { AuditRows } from '@/components/audit-trail';
 import { useAuth } from '@/components/auth-provider';
 import type { AuditEntry } from '@/lib/types';
 
 type OverviewData = {
-  sections: number;
-  games: number;
-  activeImages: number;
-  mapVersion: string | null;
+  stats: { key: string; label: string; value: number; href: string }[];
+  attention: { key: string; label: string; count: number; href: string }[];
   activity: AuditEntry[];
 };
 
-const time = (value: string | null) => value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Pending';
+const statIcons: Record<string, LucideIcon> = {
+  techs: ListChecks,
+  timetrials: Timer,
+  guessr: ImageIcon,
+  announcements: Bell,
+  media: ImageIcon,
+  attention: AlertTriangle,
+};
 
 export default function Overview() {
   const { admin, api, can } = useAuth();
   const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!admin) return;
-    api('/api/admin/overview').then(async (response) => {
+    setError('');
+    try {
+      const response = await api('/api/admin/overview');
       const body = await response.json() as OverviewData & { error?: string };
       if (!response.ok) throw new Error(body.error || 'Could not load overview');
       setData(body);
-    }).catch((nextError) => setError(nextError instanceof Error ? nextError.message : 'Could not load overview'));
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Could not load overview');
+    }
   }, [admin, api]);
 
-  const cards = [
-    { name: 'Available sections', value: data?.sections ?? '—', icon: Layers3, meta: 'Overview, games, administration' },
-    { name: 'Available games', value: data?.games ?? '—', icon: Gamepad2, meta: 'Parkour Guessr is ready to manage' },
-    { name: 'Active Guessr images', value: data?.activeImages ?? '—', icon: Images, meta: 'Published image pool' },
-    { name: 'Current map version', value: data?.mapVersion || 'Not set', icon: MapPinned, meta: 'Resolved from the active map document' },
-  ];
+  useEffect(() => { queueMicrotask(() => void load()); }, [load]);
 
   return (
     <AccessState permission="overview.view">
-      <PageHead eyebrow="Control room" title="Overview" detail="A quick read on the Parkour Guessr content pipeline and admin access." />
-      {error && <div className="mb-5 border border-red-400/25 bg-red-400/[0.06] p-4 text-red-200">{error}</div>}
+      {error && <div className="mb-4 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200">{error}</div>}
+      {!!data?.stats.length && <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6" aria-label="Hub statistics">{data.stats.map((stat) => {
+        const Icon = statIcons[stat.key] || ListChecks;
+        return <Link href={stat.href} className="panel group flex min-w-0 items-center gap-3 p-4 transition hover:border-accent/40" key={stat.key}><span className="grid size-9 shrink-0 place-items-center border border-accent/20 bg-accent/[0.08] text-accent"><Icon className="size-4" /></span><span className="min-w-0"><strong className="block font-display text-2xl leading-none">{stat.value}</strong><span className="mt-1 block truncate text-xs text-muted">{stat.label}</span></span></Link>;
+      })}</section>}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Dashboard stats">
-        {cards.map(({ name, value, icon: Icon, meta }) => (
-          <article className="panel relative overflow-hidden p-5" key={name}>
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-accent to-transparent" />
-            <div className="mb-6 flex items-start justify-between gap-4"><span className="label">{name}</span><Icon className="size-5 text-accent" /></div>
-            <strong className="block truncate font-display text-3xl font-semibold text-white">{value}</strong>
-            <p className="mt-2 text-sm text-muted">{meta}</p>
-          </article>
-        ))}
-      </section>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+        {can('announcements.view') && <Announcements compact onChanged={load} />}
+        <section className="panel overflow-hidden">
+          <div className="flex items-center gap-3 border-b border-line px-4 py-3 sm:px-5"><AlertTriangle className="size-4 text-amber-300" /><h2 className="font-display text-sm font-semibold uppercase tracking-wider">Needs attention</h2><span className="badge ml-auto">{data?.attention.reduce((sum, item) => sum + item.count, 0) || 0}</span></div>
+          <div className="divide-y divide-line">{data?.attention.map((item) => <Link href={item.href} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/[0.025] sm:px-5" key={item.key}><span className="min-w-0 flex-1 truncate">{item.label}</span><strong className="font-mono text-amber-200">{item.count}</strong></Link>)}</div>
+          {data && !data.attention.length && <div className="p-8 text-center text-sm text-muted">Nothing pending.</div>}
+          {!data && <div className="p-8 text-center text-sm text-muted">Loading…</div>}
+        </section>
+      </div>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
-        <div className="panel p-5 sm:p-6">
-          <div className="mb-5 flex items-center justify-between"><div><p className="label">Recent admin activity</p><h3 className="mt-1 font-display text-xl uppercase tracking-wider">Audit trail</h3></div><ShieldCheck className="size-5 text-accent" /></div>
-          <div className="divide-y divide-line">
-            {data?.activity.length ? data.activity.map((entry) => (
-              <div className="grid gap-1 py-4 sm:grid-cols-[1fr_auto] sm:items-center" key={entry.id}>
-                <div><strong className="font-display uppercase tracking-wide">{entry.action.replaceAll('.', ' / ')}</strong><p className="mt-1 font-mono text-xs text-muted">{entry.actorUid}{entry.targetId ? ` → ${entry.targetId}` : ''}</p></div>
-                <time className="text-sm text-muted">{time(entry.createdAt)}</time>
-              </div>
-            )) : <div className="py-10 text-center text-muted">{data ? 'No admin activity yet.' : 'Loading activity…'}</div>}
-          </div>
-        </div>
-
-        <div className="panel p-5 sm:p-6">
-          <p className="label">Quick actions</p>
-          <h3 className="mt-1 font-display text-xl uppercase tracking-wider">Move work forward</h3>
-          <div className="mt-5 grid gap-3">
-            <Link href="/games/parkourguessr" className="group flex items-center gap-3 border border-line bg-white/[0.025] p-4 hover:border-accent/40 hover:bg-accent/[0.06]"><Upload className="size-5 text-accent" /><span className="flex-1"><strong className="block">Upload Guessr image</strong><small className="text-muted">Create a validated draft</small></span><ArrowRight className="size-4 text-muted transition group-hover:translate-x-1 group-hover:text-white" /></Link>
-            <Link href="/games/parkourguessr" className="group flex items-center gap-3 border border-line bg-white/[0.025] p-4 hover:border-accent/40 hover:bg-accent/[0.06]"><Images className="size-5 text-accent" /><span className="flex-1"><strong className="block">Review drafts</strong><small className="text-muted">Filter, edit, and publish</small></span><ArrowRight className="size-4 text-muted transition group-hover:translate-x-1 group-hover:text-white" /></Link>
-            {can('admins.manage') && <Link href="/admins" className="group flex items-center gap-3 border border-line bg-white/[0.025] p-4 hover:border-accent/40 hover:bg-accent/[0.06]"><ShieldCheck className="size-5 text-accent" /><span className="flex-1"><strong className="block">Manage admins</strong><small className="text-muted">Roles and account status</small></span><ArrowRight className="size-4 text-muted transition group-hover:translate-x-1 group-hover:text-white" /></Link>}
-          </div>
-        </div>
-      </section>
+      {can('audit.view') && <section className="panel mt-4 overflow-hidden"><div className="flex items-center gap-3 border-b border-line px-4 py-3 sm:px-5"><ScrollText className="size-4 text-accent" /><h2 className="font-display text-sm font-semibold uppercase tracking-wider">Audit trail</h2><Link href="/audit" className="ml-auto text-xs text-accent hover:text-white">View all</Link></div>{data?.activity.length ? <AuditRows entries={data.activity} /> : <div className="p-8 text-center text-sm text-muted">No activity.</div>}</section>}
     </AccessState>
   );
 }

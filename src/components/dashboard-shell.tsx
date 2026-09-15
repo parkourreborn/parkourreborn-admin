@@ -2,16 +2,30 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Gamepad2, Gauge, ImageIcon, LockKeyhole, LogOut, Menu, Shield, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Bell, ChevronDown, ChevronLeft, FileText, FolderKanban, Gamepad2, Gauge, ImageIcon,
+  Link2, ListChecks, LockKeyhole, LogOut, Menu, ScrollText, Shield, Timer, X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import SetupStrip from '@/components/setup-strip';
+import { navigation, titleForPath } from '@/lib/navigation';
+import type { NavigationIcon } from '@/lib/navigation';
 
-const pathTitle = (pathname: string) => {
-  if (pathname === '/admins') return 'Admins';
-  if (pathname === '/games/parkourguessr') return 'Parkour Guessr';
-  if (pathname.startsWith('/games')) return 'Games';
-  return 'Overview';
+const icons: Record<NavigationIcon, LucideIcon> = {
+  overview: Gauge,
+  games: Gamepad2,
+  guessr: ImageIcon,
+  content: FolderKanban,
+  announcement: Bell,
+  techs: ListChecks,
+  trials: Timer,
+  media: ImageIcon,
+  links: Link2,
+  files: FileText,
+  audit: ScrollText,
+  admins: Shield,
 };
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -20,8 +34,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const loginAttempted = useRef(false);
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [gamesOpen, setGamesOpen] = useState(pathname.startsWith('/games'));
-  const [adminOpen, setAdminOpen] = useState(pathname.startsWith('/admins'));
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    Games: pathname.startsWith('/games'),
+    'Hub Content': pathname.startsWith('/hub'),
+  });
 
   useEffect(() => {
     if (loading || user || admin || busy || error || loginAttempted.current) return;
@@ -29,76 +45,78 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     void login();
   }, [admin, busy, error, loading, login, user]);
 
+  const visibleNavigation = useMemo(() => navigation
+    .map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) }))
+    .filter((group) => group.items.length), [can]);
+
   if (!admin) {
     return (
       <main className="grid min-h-screen place-items-center bg-[#05080d] p-6">
-        <section className="panel w-full max-w-md p-8 text-center" aria-live="polite">
-          <img className="mx-auto mb-6 size-16 object-contain" src="/logo/logo.webp" alt="Parkour Reborn" />
-          <LockKeyhole className="mx-auto mb-4 size-8 text-accent" />
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent">Restricted access</p>
-          <p className="mt-3 text-muted">
-            {loading || busy ? 'Checking access and opening Discord sign-in…' : error || 'Opening Discord sign-in…'}
-          </p>
-          {!loading && !busy && error && !user && (
-            <button className="btn btn-primary mt-6" onClick={() => void login()}>Try Discord sign-in again</button>
-          )}
+        <section className="panel w-full max-w-sm p-7 text-center" aria-live="polite">
+          <img className="mx-auto mb-5 size-14 object-contain" src="/logo/logo.webp" alt="Parkour Reborn" />
+          <LockKeyhole className="mx-auto mb-3 size-7 text-accent" />
+          <h1 className="font-display text-lg font-semibold uppercase tracking-wider">Admin access</h1>
+          <p className="mt-2 text-sm text-muted">{loading || busy ? 'Checking Discord…' : error || 'Opening Discord…'}</p>
+          {!loading && !busy && error && !user && <button className="btn btn-primary mt-5" onClick={() => void login()}>Try again</button>}
         </section>
       </main>
     );
   }
 
-  const linkClass = (active: boolean, child = false) => `group flex min-h-11 items-center gap-3 border-l-2 px-3 font-display text-sm font-semibold uppercase tracking-[0.11em] transition ${child ? 'ml-4' : ''} ${active ? 'border-accent bg-accent/10 text-white' : 'border-transparent text-slate-400 hover:border-accent/50 hover:bg-white/[0.035] hover:text-white'}`;
-  const sidebarClass = `${collapsed ? 'lg:w-[84px]' : 'lg:w-[270px]'} fixed inset-y-0 left-0 z-40 flex w-[286px] flex-col border-r border-accent/20 bg-[#070b11]/[0.98] p-4 shadow-2xl transition-[width,transform] duration-200 ${navOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
+  const isActive = (href: string) => pathname === href || (href !== '/overview' && pathname.startsWith(`${href}/`));
+  const linkClass = (active: boolean, child = false) => `nav-link ${child ? 'nav-link-child' : ''} ${active ? 'nav-link-active' : ''}`;
+  const sidebarClass = `${collapsed ? 'lg:w-[76px]' : 'lg:w-[248px]'} fixed inset-y-0 left-0 z-40 flex w-[280px] flex-col border-r border-accent/20 bg-[#070b11]/[0.98] p-3 shadow-2xl transition-[width,transform] duration-200 ${navOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`;
 
   return (
     <div className="min-h-screen">
       <aside className={sidebarClass}>
-        <div className="mb-7 flex h-11 items-center gap-3 overflow-hidden border-b border-line pb-4">
+        <div className="mb-4 flex h-12 items-center gap-3 overflow-hidden border-b border-line px-2 pb-3">
           <img className="size-8 shrink-0 object-contain" src="/logo/logo.webp" alt="Parkour Reborn" />
+          {!collapsed && <span className="whitespace-nowrap font-display text-sm font-bold uppercase tracking-[0.12em]">Hub Admin</span>}
           <button className="ml-auto text-slate-400 hover:text-white lg:hidden" onClick={() => setNavOpen(false)} aria-label="Close navigation"><X className="size-5" /></button>
         </div>
 
         <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label="Admin navigation">
-          <Link href="/overview" className={linkClass(pathname === '/overview')} title="Overview" onClick={() => setNavOpen(false)}><Gauge className="size-5 shrink-0" />{!collapsed && <span>Overview</span>}</Link>
+          {visibleNavigation.map((group, index) => {
+            if (!group.label) return group.items.map((item) => {
+              const Icon = icons[item.icon];
+              return <Link href={item.href} className={linkClass(isActive(item.href))} title={item.label} onClick={() => setNavOpen(false)} key={item.href}><Icon className="size-[18px] shrink-0" />{!collapsed && <span>{item.label}</span>}</Link>;
+            });
 
-          <button className={linkClass(pathname.startsWith('/games'))} onClick={() => setGamesOpen((open) => !open)} aria-expanded={gamesOpen} title="Games">
-            <Gamepad2 className="size-5 shrink-0" />{!collapsed && <><span className="flex-1 text-left">Games</span><ChevronDown className={`size-4 transition ${gamesOpen ? 'rotate-180' : ''}`} /></>}
-          </button>
-          {gamesOpen && !collapsed && (
-            <div className="grid gap-1">
-              <Link href="/games" className={linkClass(pathname === '/games', true)} onClick={() => setNavOpen(false)}><Gamepad2 className="size-4" /><span>All games</span></Link>
-              <Link href="/games/parkourguessr" className={linkClass(pathname === '/games/parkourguessr', true)} onClick={() => setNavOpen(false)}><ImageIcon className="size-4" /><span>Parkour Guessr</span></Link>
-            </div>
-          )}
-
-          {can('admins.manage') && <>
-            <button className={linkClass(pathname.startsWith('/admins'))} onClick={() => setAdminOpen((open) => !open)} aria-expanded={adminOpen} title="Administration">
-              <Shield className="size-5 shrink-0" />{!collapsed && <><span className="flex-1 text-left">Administration</span><ChevronDown className={`size-4 transition ${adminOpen ? 'rotate-180' : ''}`} /></>}
-            </button>
-            {adminOpen && !collapsed && <Link href="/admins" className={linkClass(pathname === '/admins', true)} onClick={() => setNavOpen(false)}><LockKeyhole className="size-4" /><span>Admins</span></Link>}
-          </>}
+            const GroupIcon = icons[group.icon || 'content'];
+            const expanded = openGroups[group.label] ?? false;
+            const groupActive = group.items.some((item) => isActive(item.href));
+            return (
+              <div className={index ? 'mt-1' : ''} key={group.label}>
+                <button className={linkClass(groupActive)} onClick={() => setOpenGroups((value) => ({ ...value, [group.label!]: !expanded }))} aria-expanded={expanded} title={group.label}>
+                  <GroupIcon className="size-[18px] shrink-0" />
+                  {!collapsed && <><span className="flex-1 text-left">{group.label}</span><ChevronDown className={`size-4 transition ${expanded ? 'rotate-180' : ''}`} /></>}
+                </button>
+                {expanded && !collapsed && <div className="mt-1 grid gap-1">{group.items.map((item) => {
+                  const Icon = icons[item.icon];
+                  return <Link href={item.href} className={linkClass(isActive(item.href), true)} onClick={() => setNavOpen(false)} key={item.href}><Icon className="size-4 shrink-0" /><span>{item.label}</span></Link>;
+                })}</div>}
+              </div>
+            );
+          })}
         </nav>
 
-        <div className="mt-4 border-t border-line pt-4">
-          {admin ? (
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="grid size-9 shrink-0 place-items-center border border-accent/25 bg-accent/10 font-display text-sm font-bold text-accent">{admin.displayName.slice(0, 1).toUpperCase()}</div>
-              {!collapsed && <><div className="min-w-0 flex-1"><strong className="block truncate text-sm">{admin.displayName}</strong><span className="font-mono text-[11px] uppercase tracking-wider text-muted">{admin.role}</span></div><button onClick={() => void logout()} disabled={busy} aria-label="Sign out" className="text-slate-500 hover:text-white"><LogOut className="size-4" /></button></>}
-            </div>
-          ) : !collapsed && (
-            <button className="btn btn-primary w-full" onClick={() => void login()} disabled={busy || loading}>{loading ? 'Checking access' : 'Sign in with Discord'}</button>
-          )}
-          {!collapsed && error && <p className="mt-3 text-sm text-red-300">{error}</p>}
+        <div className="mt-3 border-t border-line pt-3">
+          <div className="flex items-center gap-3 overflow-hidden px-2">
+            <div className="grid size-8 shrink-0 place-items-center border border-accent/25 bg-accent/10 font-display text-xs font-bold text-accent">{admin.displayName.slice(0, 1).toUpperCase()}</div>
+            {!collapsed && <><div className="min-w-0 flex-1"><strong className="block truncate text-sm">{admin.displayName}</strong><span className="font-mono text-[11px] uppercase tracking-wider text-muted">{admin.isOwner ? 'Owner' : `${admin.permissions.length} permissions`}</span></div><button onClick={() => void logout()} disabled={busy} aria-label="Sign out" title="Sign out" className="text-slate-500 hover:text-white"><LogOut className="size-4" /></button></>}
+          </div>
+          {!collapsed && error && <p className="mt-3 px-2 text-sm text-red-300">{error}</p>}
         </div>
       </aside>
 
-      <div className={`${collapsed ? 'lg:pl-[84px]' : 'lg:pl-[270px]'} transition-[padding] duration-200`}>
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-[#05080d]/90 px-4 backdrop-blur-xl sm:px-6">
-          <button className="grid size-10 place-items-center border border-line bg-white/[0.03] text-slate-300 hover:border-accent/50 hover:text-white" onClick={() => window.innerWidth >= 1024 ? setCollapsed((value) => !value) : setNavOpen(true)} aria-label="Toggle navigation"><Menu className="size-5" /></button>
-          <div><span className="font-mono text-[11px] uppercase tracking-[0.17em] text-accent">Parkour Reborn Hub</span><h1 className="font-display text-lg font-semibold uppercase tracking-[0.08em]">{pathTitle(pathname)}</h1></div>
-          <span className="ml-auto hidden font-mono text-xs uppercase tracking-wider text-slate-500 sm:block">admin.parkourreborn.com</span>
+      <div className={`${collapsed ? 'lg:pl-[76px]' : 'lg:pl-[248px]'} transition-[padding] duration-200`}>
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-[#05080d]/90 px-4 backdrop-blur-xl sm:px-6">
+          <button className="grid size-9 place-items-center border border-line bg-white/[0.03] text-slate-300 hover:border-accent/50 hover:text-white" onClick={() => window.innerWidth >= 1024 ? setCollapsed((value) => !value) : setNavOpen(true)} aria-label="Toggle navigation" title="Toggle navigation">{collapsed ? <ChevronLeft className="size-4 rotate-180" /> : <Menu className="size-5" />}</button>
+          <h1 className="font-display text-base font-semibold uppercase tracking-[0.09em] sm:text-lg">{titleForPath(pathname)}</h1>
+          <span className="ml-auto hidden font-mono text-[11px] uppercase tracking-wider text-slate-500 sm:block">admin.parkourreborn.com</span>
         </header>
-        <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-[1500px] px-3 py-4 sm:px-5 sm:py-5 lg:px-6">
           <SetupStrip />
           {children}
         </main>

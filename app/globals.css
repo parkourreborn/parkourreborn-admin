@@ -75,7 +75,43 @@ button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
   .btn-secondary:hover { border-color: var(--admin-line-hot); background: rgba(54, 185, 236, 0.1); }
   .btn-danger { @apply border-red-400/25 bg-red-400/[0.07] text-red-300 hover:bg-red-400/[0.12]; }
   .badge { @apply inline-flex items-center border border-line bg-white/[0.035] px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted; border-radius: 2px; }
+
+  .nav-link {
+    @apply flex min-h-10 w-full items-center gap-3 border-l-2 border-transparent px-3 font-display text-sm font-semibold uppercase tracking-[0.08em] text-slate-400 transition hover:bg-white/[0.035] hover:text-white;
+  }
+
+  .nav-link:hover { border-color: rgba(54, 185, 236, 0.4); }
+
+  .nav-link-child { @apply ml-4 w-[calc(100%-1rem)] text-[13px] normal-case tracking-[0.03em]; }
+  .nav-link-active { @apply border-accent text-white; background: rgba(54, 185, 236, 0.1); }
+
+  .icon-btn {
+    @apply inline-grid size-9 shrink-0 place-items-center border border-line bg-white/[0.025] text-slate-400 transition hover:text-white disabled:pointer-events-none disabled:opacity-40;
+    border-radius: 3px;
+  }
+
+  .icon-btn:hover { border-color: rgba(54, 185, 236, 0.4); background: rgba(54, 185, 236, 0.08); }
+
+  .data-table { @apply w-full border-collapse text-left text-sm; }
+  .data-table thead { @apply border-b border-line bg-black/20 font-mono text-[11px] uppercase tracking-wider text-muted; }
+  .data-table th { @apply px-4 py-3 font-semibold; }
+  .data-table td { @apply border-b border-line px-4 py-3; }
+  .data-table tbody tr { @apply transition hover:bg-white/[0.02]; }
+  .data-table tbody tr:last-child td { @apply border-b-0; }
+
+  .status-active { @apply !border-emerald-400/20 !text-emerald-300; }
+  .status-muted { @apply !border-slate-500/20 !text-slate-400; }
+
+  .modal-backdrop { @apply fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/75 p-3 backdrop-blur-sm sm:p-6; }
+  .modal-panel { @apply my-auto max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto border bg-[#090f18] shadow-2xl sm:max-h-[calc(100vh-3rem)]; border-color: rgba(54, 185, 236, 0.25); border-radius: 3px; }
+  .modal-head { @apply sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-[#090f18]/95 px-4 py-3 backdrop-blur sm:px-5; }
+  .modal-actions { @apply sticky bottom-0 flex justify-end gap-2 border-t border-line bg-[#090f18]/95 px-4 py-3 backdrop-blur sm:px-5; }
+
+  .permission-grid { @apply grid gap-3 md:grid-cols-2; }
+  .permission-option { @apply flex min-h-9 items-center gap-3 px-2 text-sm text-slate-300 transition hover:bg-white/[0.025] hover:text-white; }
 }
+
+input[type='checkbox'] { accent-color: var(--admin-blue); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }

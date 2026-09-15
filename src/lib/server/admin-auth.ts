@@ -3,9 +3,9 @@ import 'server-only';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { getAdminAuth, getAdminDb } from '@/lib/server/firebase-admin';
-import { rolePermissions } from '@/lib/roles';
-import { permissions } from '@/lib/types';
-import type { AdminProfile, AdminRole, Permission } from '@/lib/types';
+import { allPermissions, isPermission } from '@/lib/permissions';
+import { isOwnerIdentity, OWNER_DISCORD_ID, OWNER_UID } from '@/lib/server/owner';
+import type { AdminProfile, Permission } from '@/lib/types';
 
 export class AdminAuthError extends Error {
   status: number;
@@ -15,12 +15,6 @@ export class AdminAuthError extends Error {
     this.status = status;
   }
 }
-
-const validRole = (value: unknown): value is AdminRole => ['superadmin', 'admin', 'editor', 'viewer'].includes(String(value));
-const validPermission = (value: unknown): value is Permission => permissions.includes(value as Permission);
-const superadminDiscordIds = () => new Set(
-  (process.env.SUPERADMIN_DISCORD_IDS || '').split(',').map((id) => id.trim()).filter(Boolean),
-);
 
 export async function verifyIdToken(header: string | null): Promise<DecodedIdToken> {
   const [type, token] = header?.split(' ') ?? [];
@@ -33,49 +27,61 @@ export async function verifyIdToken(header: string | null): Promise<DecodedIdTok
   }
 }
 
-export async function bootstrapSuperadmin(uid: string, discordId: string, profile?: { displayName?: string; avatarUrl?: string | null }) {
-  if (!superadminDiscordIds().has(discordId)) return null;
+export async function bootstrapOwner(uid: string, discordId: string, profile?: { displayName?: string; avatarUrl?: string | null }) {
+  if (!isOwnerIdentity(uid, discordId)) return null;
 
-  const ref = getAdminDb().collection('admins').doc(uid);
+  const ref = getAdminDb().collection('admins').doc(OWNER_UID);
+  const existing = await ref.get();
   await ref.set({
-    role: 'superadmin',
-    permissions: rolePermissions.superadmin,
+    permissions: allPermissions,
     disabled: false,
-    discordId,
-    displayName: profile?.displayName || 'Super admin',
+    owner: true,
+    discordId: OWNER_DISCORD_ID,
+    displayName: profile?.displayName || 'ElkkuT',
     avatarUrl: profile?.avatarUrl || null,
     updatedAt: FieldValue.serverTimestamp(),
-    createdAt: FieldValue.serverTimestamp(),
+    ...(!existing.exists ? { createdAt: FieldValue.serverTimestamp() } : {}),
   }, { merge: true });
   return ref.get();
 }
 
 export async function loadAdmin(uid: string, discordId?: string): Promise<AdminProfile> {
+  const owner = isOwnerIdentity(uid, discordId);
   const ref = getAdminDb().collection('admins').doc(uid);
   let doc = await ref.get();
-  if (!doc.exists && discordId) doc = await bootstrapSuperadmin(uid, discordId) || doc;
+  if (owner) doc = await bootstrapOwner(uid, discordId!, { displayName: 'ElkkuT' }) || doc;
   if (!doc.exists) throw new AdminAuthError('This Discord account is not an admin');
 
   const data = doc.data() || {};
-  if (data.disabled === true) throw new AdminAuthError('This admin account is disabled');
-  const role = validRole(data.role) ? data.role : 'viewer';
-  const explicit = Array.isArray(data.permissions) ? data.permissions.filter(validPermission) : [];
-  const resolved = role === 'superadmin' ? rolePermissions.superadmin : Array.from(new Set([...rolePermissions[role], ...explicit]));
+  if (!owner && data.disabled === true) throw new AdminAuthError('This admin account is disabled');
+  const explicit = Array.isArray(data.permissions) ? data.permissions.filter(isPermission) : [];
 
   return {
     uid,
-    role,
-    permissions: resolved,
-    displayName: typeof data.displayName === 'string' ? data.displayName : 'Admin',
+    permissions: owner ? allPermissions : Array.from(new Set(explicit)),
+    displayName: typeof data.displayName === 'string' ? data.displayName : owner ? 'ElkkuT' : 'Admin',
     avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : null,
     disabled: false,
+    isOwner: owner,
   };
 }
 
-export async function requireAdmin(header: string | null, permission: Permission) {
+export async function authenticateAdmin(header: string | null) {
   const token = await verifyIdToken(header);
   const discordId = typeof token.discordId === 'string' ? token.discordId : undefined;
   const admin = await loadAdmin(token.uid, discordId);
-  if (!admin.permissions.includes(permission)) throw new AdminAuthError('Missing permission');
   return { token, admin };
+}
+
+export async function requireAdmin(header: string | null, permission: Permission) {
+  const result = await authenticateAdmin(header);
+  if (!result.admin.permissions.includes(permission)) throw new AdminAuthError('Missing permission');
+  return result;
+}
+
+export async function requireOwner(header: string | null) {
+  const result = await authenticateAdmin(header);
+  const discordId = typeof result.token.discordId === 'string' ? result.token.discordId : undefined;
+  if (!isOwnerIdentity(result.token.uid, discordId)) throw new AdminAuthError('Owner access required');
+  return result;
 }

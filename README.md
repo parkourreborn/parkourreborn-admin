@@ -1,12 +1,20 @@
 # Parkour Reborn Admin
 
-Separate Next.js admin dashboard for the Parkour Reborn Hub. The public website in `../parkourreborn` is reference-only and is not imported at runtime.
+Next.js admin dashboard for the Parkour Reborn Hub. The public website in `../parkourreborn` is used as the Firestore schema reference and is not imported at runtime.
 
 ## Local setup
 
-1. Copy `.env.example` to `.env.local` and fill the required values.
-2. Create an active `guessrMaps/{mapVersionId}` Firestore document.
+1. Add the Firebase client/Admin, Discord OAuth, R2, and Guessr map environment variables.
+2. Create an active `guessrMaps/{mapVersionId}` document.
 3. Run `npm run dev` and open `http://localhost:3000`.
-4. Follow [docs/SETUP.md](docs/SETUP.md) for Firebase, Discord, R2, super-admin, Vercel, and DNS setup.
 
-The dashboard intentionally shows setup status and disables live uploads when services are missing.
+## Owner access
+
+The protected owner identity is defined server-side as:
+
+- Discord ID: `1020704620722528256`
+- Firebase UID: `discord-1020704620722528256`
+
+No manual Firestore record is required. The first successful Discord sign-in creates or repairs `admins/discord-1020704620722528256` with every permission. Owner status is never read from Firestore and cannot be granted through the dashboard.
+
+Other admins use documents in `admins/{firebaseUid}` with `displayName`, `permissions`, and `disabled`. All Firestore access from the browser is denied; admin data is accessed through authenticated server routes.

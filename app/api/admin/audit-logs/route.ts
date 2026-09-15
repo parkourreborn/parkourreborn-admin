@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin(request.headers.get('authorization'), 'overview.view');
+    await requireAdmin(request.headers.get('authorization'), 'audit.view');
     const docs = await getAdminDb().collection('guessrAuditLogs').orderBy('createdAt', 'desc').limit(50).get();
     return NextResponse.json({ logs: docs.docs.map(auditFromDoc) });
   } catch (error) {

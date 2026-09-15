@@ -95,7 +95,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
     }
   };
 
-  const liveReady = Boolean(setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.images.upload'));
+  const liveReady = Boolean(setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.images.create'));
 
   return (
     <section className="panel p-5 sm:p-6">
@@ -127,7 +127,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
           <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !mapVersionId.trim() || !liveReady}>{busy ? `Uploading ${progress}%` : liveReady ? 'Upload draft' : 'Upload unavailable — finish setup'}</button>
         </div>
 
-        <div><p className="label mb-2">Map target</p><MapStage src={defaultMap} value={point} onChange={setPoint} /><p className="mt-3 text-sm text-muted">The marker and map share one pan/zoom layer. Coordinates are stored as normalized values from 0 to 1.</p></div>
+        <div><p className="label mb-2">Map target</p><MapStage src={defaultMap} value={point} onChange={setPoint} /></div>
       </div>
     </section>
   );

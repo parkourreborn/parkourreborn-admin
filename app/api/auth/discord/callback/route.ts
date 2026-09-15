@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminAuthError, bootstrapSuperadmin, loadAdmin } from '@/lib/server/admin-auth';
+import { AdminAuthError, bootstrapOwner, loadAdmin } from '@/lib/server/admin-auth';
 import { getAdminAuth, getAdminDb } from '@/lib/server/firebase-admin';
 
 export const runtime = "nodejs";
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       avatarUrl: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` : null,
     };
     const existing = await db.collection('admins').doc(uid).get();
-    if (!existing.exists) await bootstrapSuperadmin(uid, user.id, account);
+    if (!existing.exists) await bootstrapOwner(uid, user.id, account);
     const admin = await loadAdmin(uid, user.id);
     await syncUser(uid, user);
     await db.collection('admins').doc(uid).set({
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     await db.collection('adminLoginSessions').doc(login).set({
       uid,
       discordId: user.id,
-      role: admin.role,
+      permissions: admin.permissions,
       expiresAt: new Date(expiresAtMs),
       expiresAtMs,
       createdAt: FieldValue.serverTimestamp(),
