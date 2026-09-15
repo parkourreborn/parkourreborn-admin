@@ -4,11 +4,10 @@ import { useRef, useState } from 'react';
 import { Check, ImagePlus, UploadCloud, X } from 'lucide-react';
 import MapStage from '@/components/map-stage';
 import { useAuth } from '@/components/auth-provider';
-import type { GuessrDifficulty, GuessrMode, GuessrTarget, MapPoint } from '@/lib/types';
+import type { GuessrDifficulty, GuessrMode, MapPoint } from '@/lib/types';
 
 const maxBytes = 4 * 1024 * 1024;
 const defaultMap = process.env.NEXT_PUBLIC_GUESSR_MAP_URL || '/maps/parkour-reborn-clean.jpg';
-const defaultVersion = process.env.NEXT_PUBLIC_GUESSR_MAP_VERSION_ID || '';
 
 const webp = async (file: File) => {
   const bitmap = await createImageBitmap(file);
@@ -39,8 +38,6 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
   const [preview, setPreview] = useState('');
   const [mode, setMode] = useState<GuessrMode>('classic');
   const [difficulty, setDifficulty] = useState<GuessrDifficulty>('normal');
-  const [targetType, setTargetType] = useState<GuessrTarget>('player');
-  const [mapVersionId, setMapVersionId] = useState(defaultVersion);
   const [point, setPoint] = useState<MapPoint | null>(null);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -65,7 +62,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
   };
 
   const upload = async () => {
-    if (!file || !point || !mapVersionId.trim()) return setError('Choose an image, an active map version, and a map target.');
+    if (!file || !point) return setError('Choose an image and a map target.');
     setBusy(true);
     setError('');
     setDone(false);
@@ -73,7 +70,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
     try {
       const init = await api('/api/admin/uploads/init', {
         method: 'POST',
-        body: JSON.stringify({ fileName: file.name, contentType: 'image/webp', bytes: file.size, mode, difficulty, targetType, coordinates: point, mapVersionId: mapVersionId.trim() }),
+        body: JSON.stringify({ fileName: file.name, contentType: 'image/webp', bytes: file.size, mode, difficulty, coordinates: point }),
       });
       const initData = await init.json() as { uploadId?: string; uploadUrl?: string; error?: string };
       if (!init.ok || !initData.uploadId || !initData.uploadUrl) throw new Error(initData.error || 'Could not initialize upload');
@@ -117,14 +114,12 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
           <div className="grid grid-cols-2 gap-4">
             <label><span className="label mb-2 block">Mode</span><select className="field" value={mode} onChange={(event) => setMode(event.target.value as GuessrMode)}><option value="classic">Classic</option><option value="graffiti">Graffiti</option></select></label>
             <label><span className="label mb-2 block">Difficulty</span><select className="field" value={difficulty} onChange={(event) => setDifficulty(event.target.value as GuessrDifficulty)}><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
-            <label><span className="label mb-2 block">Target type</span><select className="field" value={targetType} onChange={(event) => setTargetType(event.target.value as GuessrTarget)}><option value="player">Player</option><option value="graffiti">Graffiti</option></select></label>
-            <label><span className="label mb-2 block">Map version</span><input className="field" value={mapVersionId} onChange={(event) => setMapVersionId(event.target.value)} placeholder="Firestore map ID" /></label>
           </div>
 
           {progress > 0 && <div><div className="mb-2 flex justify-between text-sm"><span>{busy ? 'Uploading and verifying' : 'Upload complete'}</span><span className="font-mono">{progress}%</span></div><div className="h-2 overflow-hidden bg-white/[0.06]"><span className="block h-full bg-accent transition-[width]" style={{ width: `${progress}%` }} /></div></div>}
           {error && <p className="flex items-start gap-2 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200"><X className="mt-0.5 size-4 shrink-0" />{error}</p>}
           {done && <p className="flex items-center gap-2 border border-emerald-400/25 bg-emerald-400/[0.06] p-3 text-sm text-emerald-200"><Check className="size-4" />Draft created and verified.</p>}
-          <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !mapVersionId.trim() || !liveReady}>{busy ? `Uploading ${progress}%` : liveReady ? 'Upload draft' : 'Upload unavailable — finish setup'}</button>
+          <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !liveReady}>{busy ? `Uploading ${progress}%` : liveReady ? 'Upload draft' : 'Upload unavailable — finish setup'}</button>
         </div>
 
         <div><p className="label mb-2">Map target</p><MapStage src={defaultMap} value={point} onChange={setPoint} /></div>

@@ -1,4 +1,3 @@
-import { FieldValue } from 'firebase-admin/firestore';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError } from '@/lib/server/api';
@@ -7,7 +6,7 @@ import { writeAudit } from '@/lib/server/audit';
 import { documentIdSchema } from '@/lib/server/content-sections';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { mediaPatchSchema } from '@/lib/server/media-schema';
-import { deleteR2Object } from '@/lib/server/r2';
+import { deleteR2Object, r2ObjectKeyFromPublicUrl } from '@/lib/server/r2';
 import { mediaFromDoc } from '@/lib/server/serializers';
 
 export const runtime = 'nodejs';
@@ -19,18 +18,34 @@ export async function PATCH(request: NextRequest, context: Context) {
     const id = documentIdSchema.parse((await context.params).id);
     const body = mediaPatchSchema.parse(await request.json());
     if (!Object.keys(body).length) return NextResponse.json({ error: 'No changes supplied' }, { status: 400 });
-    const ref = getAdminDb().collection('gifs').doc(id);
-    const current = await ref.get();
-    if (!current.exists) return NextResponse.json({ error: 'Media not found' }, { status: 404 });
-    const publicUrl = String(current.data()?.publicUrl || current.data()?.link || '');
-    await ref.update({ ...body, ...(typeof body.active === 'boolean' ? { link: body.active ? publicUrl : '' } : {}), updatedBy: admin.uid, updatedAt: FieldValue.serverTimestamp() });
-    const action = Object.keys(body).length === 1 && typeof body.active === 'boolean'
-      ? `media.${body.active ? 'reactivated' : 'disabled'}`
-      : 'media.edited';
-    await writeAudit(admin.uid, action, id, { fields: Object.keys(body) });
-    return NextResponse.json({ media: mediaFromDoc(await ref.get()) });
+    const db = getAdminDb();
+    const currentRef = db.collection('gifs').doc(id);
+    const nextId = body.label || id;
+    const nextRef = db.collection('gifs').doc(nextId);
+    let previousLink = '';
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(currentRef);
+      if (!current.exists) throw new Error('NOT_FOUND');
+      if (nextId !== id && (await transaction.get(nextRef)).exists) throw new Error('CONFLICT');
+      previousLink = String(current.data()?.link || current.data()?.publicUrl || '');
+      const link = body.link || previousLink;
+      const redirect = body.redirect ?? String(current.data()?.redirect || '');
+      transaction.set(nextRef, { link, redirect });
+      if (nextId !== id) transaction.delete(currentRef);
+    });
+    if (body.link && body.link !== previousLink) {
+      const previousKey = r2ObjectKeyFromPublicUrl(previousLink);
+      if (previousKey) await deleteR2Object(previousKey, 'gifs/').catch(() => undefined);
+    }
+    await writeAudit(admin.uid, 'media.edited', nextId, {
+      ...(nextId !== id ? { previousId: id } : {}),
+      fields: Object.keys(body),
+    });
+    return NextResponse.json({ media: mediaFromDoc(await nextRef.get()) });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid media changes' }, { status: 400 });
+    if (error instanceof Error && error.message === 'NOT_FOUND') return NextResponse.json({ error: 'GIF not found' }, { status: 404 });
+    if (error instanceof Error && error.message === 'CONFLICT') return NextResponse.json({ error: 'A GIF with that label already exists' }, { status: 409 });
     return apiError(error, 'Could not update media');
   }
 }
@@ -43,11 +58,11 @@ export async function DELETE(request: NextRequest, context: Context) {
     const doc = await ref.get();
     if (!doc.exists) return NextResponse.json({ error: 'Media not found' }, { status: 404 });
     const data = doc.data() || {};
-    if (data.active !== false) return NextResponse.json({ error: 'Disable media before permanently deleting it' }, { status: 409 });
-    if (typeof data.objectKey !== 'string' || !data.objectKey.startsWith('gifs/')) return NextResponse.json({ error: 'R2 object key is missing or invalid' }, { status: 409 });
-    await deleteR2Object(data.objectKey, 'gifs/');
+    const objectKey = r2ObjectKeyFromPublicUrl(String(data.link || data.publicUrl || ''))
+      || (typeof data.objectKey === 'string' && data.objectKey.startsWith('gifs/') ? data.objectKey : null);
+    if (objectKey) await deleteR2Object(objectKey, 'gifs/');
     await ref.delete();
-    await writeAudit(admin.uid, 'media.deleted', id, { objectKey: data.objectKey });
+    await writeAudit(admin.uid, 'media.deleted', id, objectKey ? { objectKey } : { source: 'url' });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid media item' }, { status: 400 });

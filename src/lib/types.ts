@@ -25,7 +25,6 @@ export const permissions = [
 export type Permission = typeof permissions[number];
 export type GuessrMode = 'classic' | 'graffiti';
 export type GuessrDifficulty = 'normal' | 'hard';
-export type GuessrTarget = 'player' | 'graffiti';
 export type GuessrStatus = 'draft' | 'published' | 'disabled';
 
 export type AdminProfile = {
@@ -45,10 +44,8 @@ export type GuessrImage = {
   imageUrl: string;
   mode: GuessrMode;
   difficulty: GuessrDifficulty;
-  targetType: GuessrTarget;
   status: GuessrStatus;
   coordinates: MapPoint;
-  mapVersionId: string;
   createdBy: string;
   createdAt: string | null;
   updatedAt: string | null;
@@ -76,19 +73,8 @@ export type Announcement = {
 
 export type MediaItem = {
   id: string;
-  displayName: string;
-  originalFilename: string;
-  objectKey: string;
-  publicUrl: string;
-  mimeType: string;
-  fileSize: number;
-  active: boolean;
-  uploadedBy: string;
-  createdAt: string | null;
-  updatedAt: string | null;
-  altText: string;
-  category: string;
-  description: string;
+  link: string;
+  redirect: string;
 };
 
 export type ContentRecord = {

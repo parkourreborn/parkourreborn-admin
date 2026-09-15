@@ -5,6 +5,7 @@ import { apiError } from '@/lib/server/api';
 import { requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
+import { guessrMapVersionId } from '@/lib/server/guessr-schema';
 import { imageFromDoc } from '@/lib/server/serializers';
 import { verifyUpload } from '@/lib/server/r2';
 
@@ -42,9 +43,8 @@ export async function POST(request: NextRequest) {
         contentType: object.contentType,
         mode: data.mode,
         difficulty: data.difficulty,
-        targetType: data.targetType,
         coordinates: data.coordinates,
-        mapVersionId: data.mapVersionId,
+        mapVersionId: guessrMapVersionId,
         status: 'draft',
         createdBy: admin.uid,
         createdAt: FieldValue.serverTimestamp(),
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       });
       transaction.delete(sessionRef);
     });
-    await writeAudit(admin.uid, 'guessr.image.uploaded', uploadId, { mapVersionId: data.mapVersionId });
+    await writeAudit(admin.uid, 'guessr.image.uploaded', uploadId, { mapVersionId: guessrMapVersionId });
     return NextResponse.json({ image: imageFromDoc(await imageRef.get()) }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid upload session' }, { status: 400 });

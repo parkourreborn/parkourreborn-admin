@@ -25,22 +25,17 @@ export async function GET(request: NextRequest) {
         return !expiry || typeof expiry.toMillis !== 'function' || expiry.toMillis() > now;
       }).length;
     };
-    const countUploadedMedia = async () => {
-      const snapshot = await db.collection('gifs').get();
-      return snapshot.docs.filter((doc) => typeof doc.data().objectKey === 'string' && doc.data().objectKey.startsWith('gifs/')).length;
-    };
     const statTasks: Promise<Stat | null>[] = [
       can('techs.view') ? count(db.collection('movement')).then((value) => ({ key: 'techs', label: 'Techs', value, href: '/hub/techs' })) : Promise.resolve(null),
       can('timetrials.view') ? count(db.collection('timetrials')).then((value) => ({ key: 'timetrials', label: 'Time trials', value, href: '/hub/timetrials' })) : Promise.resolve(null),
       can('guessr.view') ? count(db.collection('guessrImages').where('status', '==', 'published')).then((value) => ({ key: 'guessr', label: 'Guessr images', value, href: '/games/parkourguessr' })) : Promise.resolve(null),
       can('announcements.view') ? countActiveAnnouncements().then((value) => ({ key: 'announcements', label: 'Announcements', value, href: '/hub/announcements' })) : Promise.resolve(null),
-      can('media.view') ? countUploadedMedia().then((value) => ({ key: 'media', label: 'Uploaded media', value, href: '/hub/media' })) : Promise.resolve(null),
+      can('media.view') ? count(db.collection('gifs')).then((value) => ({ key: 'media', label: 'GIFs', value, href: '/hub/media' })) : Promise.resolve(null),
     ];
     const attentionTasks: Promise<Attention | null>[] = [
       can('guessr.view') ? count(db.collection('guessrImages').where('status', '==', 'draft')).then((value) => ({ key: 'guessr-drafts', label: 'Guessr drafts', count: value, href: '/games/parkourguessr' })) : Promise.resolve(null),
       can('guessr.view') ? count(db.collection('guessrImages').where('status', '==', 'disabled')).then((value) => ({ key: 'guessr-disabled', label: 'Disabled Guessr images', count: value, href: '/games/parkourguessr' })) : Promise.resolve(null),
       can('announcements.view') ? count(db.collection('announcements').where('active', '==', false)).then((value) => ({ key: 'announcement-drafts', label: 'Unpublished announcements', count: value, href: '/hub/announcements' })) : Promise.resolve(null),
-      can('media.view') ? count(db.collection('gifs').where('active', '==', false)).then((value) => ({ key: 'media-disabled', label: 'Disabled media', count: value, href: '/hub/media' })) : Promise.resolve(null),
       can('techs.view') ? count(db.collection('movement').where('active', '==', false)).then((value) => ({ key: 'techs-disabled', label: 'Disabled techs', count: value, href: '/hub/techs' })) : Promise.resolve(null),
       can('timetrials.view') ? count(db.collection('timetrials').where('active', '==', false)).then((value) => ({ key: 'trials-disabled', label: 'Disabled time trials', count: value, href: '/hub/timetrials' })) : Promise.resolve(null),
     ];

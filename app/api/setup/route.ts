@@ -16,6 +16,6 @@ export async function GET() {
     firebaseAdmin: hasFirebaseAdminEnv(),
     discord: Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET && process.env.DISCORD_REDIRECT_URI),
     r2: hasR2Env(),
-    map: Boolean(process.env.NEXT_PUBLIC_GUESSR_MAP_URL && process.env.NEXT_PUBLIC_GUESSR_MAP_VERSION_ID),
+    map: Boolean(process.env.NEXT_PUBLIC_GUESSR_MAP_URL),
   });
 }

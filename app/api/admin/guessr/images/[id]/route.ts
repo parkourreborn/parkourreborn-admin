@@ -5,7 +5,7 @@ import { apiError } from '@/lib/server/api';
 import { requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
-import { imagePatchSchema } from '@/lib/server/guessr-schema';
+import { guessrMapVersionId, imagePatchSchema } from '@/lib/server/guessr-schema';
 import { deleteR2Object } from '@/lib/server/r2';
 import { imageFromDoc } from '@/lib/server/serializers';
 
@@ -19,14 +19,18 @@ export async function PATCH(request: NextRequest, context: Context) {
     const { id } = await context.params;
     const patch = imagePatchSchema.parse(await request.json());
     if (!Object.keys(patch).length) return NextResponse.json({ error: 'No changes supplied' }, { status: 400 });
-    if (patch.mapVersionId) {
-      const map = await getAdminDb().collection('guessrMaps').doc(patch.mapVersionId).get();
-      if (!map.exists || map.data()?.active !== true) return NextResponse.json({ error: 'Map version is not active' }, { status: 400 });
-    }
 
     const ref = getAdminDb().collection('guessrImages').doc(id);
     if (!(await ref.get()).exists) return NextResponse.json({ error: 'Image not found' }, { status: 404 });
-    await ref.update({ ...patch, updatedBy: admin.uid, updatedAt: FieldValue.serverTimestamp() });
+    await ref.update({
+      ...patch,
+      mapVersionId: guessrMapVersionId,
+      targetType: FieldValue.delete(),
+      publishedBy: FieldValue.delete(),
+      publishedAt: FieldValue.delete(),
+      updatedBy: admin.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
     await writeAudit(admin.uid, 'guessr.image.edited', id, { fields: Object.keys(patch) });
     return NextResponse.json({ image: imageFromDoc(await ref.get()) });
   } catch (error) {

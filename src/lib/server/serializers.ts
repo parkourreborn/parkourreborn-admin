@@ -16,10 +16,8 @@ export const imageFromDoc = (doc: DocumentSnapshot): GuessrImage => {
     imageUrl: String(data.imageUrl || ''),
     mode: data.mode === 'graffiti' ? 'graffiti' : 'classic',
     difficulty: data.difficulty === 'hard' ? 'hard' : 'normal',
-    targetType: data.targetType === 'graffiti' ? 'graffiti' : 'player',
     status: data.status === 'published' || data.status === 'disabled' ? data.status : 'draft',
     coordinates: { x: Number(data.coordinates?.x || 0), y: Number(data.coordinates?.y || 0) },
-    mapVersionId: String(data.mapVersionId || ''),
     createdBy: String(data.createdBy || ''),
     createdAt: iso(data.createdAt),
     updatedAt: iso(data.updatedAt),
@@ -56,19 +54,8 @@ export const mediaFromDoc = (doc: DocumentSnapshot): MediaItem => {
   const data = doc.data() || {};
   return {
     id: doc.id,
-    displayName: String(data.displayName || doc.id),
-    originalFilename: String(data.originalFilename || ''),
-    objectKey: String(data.objectKey || ''),
-    publicUrl: String(data.publicUrl || data.link || ''),
-    mimeType: String(data.mimeType || ''),
-    fileSize: Number(data.fileSize || 0),
-    active: data.active !== false,
-    uploadedBy: String(data.uploadedBy || ''),
-    createdAt: iso(data.createdAt),
-    updatedAt: iso(data.updatedAt),
-    altText: String(data.altText || ''),
-    category: String(data.category || ''),
-    description: String(data.description || ''),
+    link: String(data.link || data.publicUrl || ''),
+    redirect: String(data.redirect || ''),
   };
 };
 

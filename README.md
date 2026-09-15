@@ -5,7 +5,7 @@ Next.js admin dashboard for the Parkour Reborn Hub. The public website in `../pa
 ## Local setup
 
 1. Add the Firebase client/Admin, Discord OAuth, R2, and Guessr map environment variables.
-2. Create an active `guessrMaps/{mapVersionId}` document.
+2. Create an active `guessrMaps/main-v1` document. Change `guessrMapVersionId` in `src/lib/server/guessr-schema.ts` to use another version.
 3. Run `npm run dev` and open `http://localhost:3000`.
 
 ## Owner access

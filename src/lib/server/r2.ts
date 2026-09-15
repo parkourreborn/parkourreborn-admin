@@ -58,3 +58,15 @@ export async function deleteR2Object(key: string, requiredPrefix: 'guessr/images
   const config = env();
   await client().send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
 }
+
+export const r2ObjectKeyFromPublicUrl = (value: string) => {
+  const configuredBase = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, '');
+  if (!configuredBase || !value.startsWith(`${configuredBase}/`)) return null;
+  try {
+    const key = decodeURIComponent(value.slice(configuredBase.length + 1));
+    safeKey(key);
+    return key.startsWith('gifs/') ? key : null;
+  } catch {
+    return null;
+  }
+};
