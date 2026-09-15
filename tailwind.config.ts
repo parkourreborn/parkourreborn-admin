@@ -11,6 +11,9 @@ const config: Config = {
         accent: 'var(--admin-blue)',
         muted: 'var(--admin-muted)',
       },
+      borderColor: {
+        DEFAULT: '#ffffff00',
+      },
       fontFamily: {
         sans: ['Exo 2', 'Arial', 'sans-serif'],
         display: ['Jura', 'Arial', 'sans-serif'],
