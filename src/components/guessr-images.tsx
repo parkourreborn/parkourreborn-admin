@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Edit3, EyeOff, RefreshCw, Rocket, X } from 'lucide-react';
+import { Edit3, EyeOff, RefreshCw, Rocket, RotateCcw, Trash2, X } from 'lucide-react';
 import MapStage from '@/components/map-stage';
 import { useAuth } from '@/components/auth-provider';
 import type { GuessrDifficulty, GuessrImage, GuessrMode, GuessrStatus, GuessrTarget, MapPoint } from '@/lib/types';
@@ -17,6 +17,7 @@ export default function GuessrImages({ refreshKey }: { refreshKey: number }) {
   const [filters, setFilters] = useState(initialFilters);
   const [editing, setEditing] = useState<GuessrImage | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionKey, setActionKey] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -68,12 +69,28 @@ export default function GuessrImages({ refreshKey }: { refreshKey: number }) {
   const visible = useMemo(() => images.filter((image) => Object.entries(filters).every(([key, value]) => value === 'all' || image[key as keyof GuessrImage] === value)), [filters, images]);
   const grouped = ['draft', 'published', 'disabled'].map((status) => ({ status: status as GuessrStatus, images: visible.filter((image) => image.status === status) })).filter((group) => filters.status === 'all' || group.status === filters.status);
 
-  const action = async (image: GuessrImage, kind: 'publish' | 'disable') => {
-    const url = kind === 'publish' ? `/api/admin/guessr/images/${image.id}/publish` : `/api/admin/guessr/images/${image.id}`;
-    const response = await api(url, { method: kind === 'publish' ? 'POST' : 'DELETE' });
-    const data = await response.json() as { error?: string };
-    if (!response.ok) return setError(data.error || `Could not ${kind} image`);
-    await load();
+  const action = async (image: GuessrImage, kind: 'publish' | 'disable' | 'reactivate' | 'delete') => {
+    if (kind === 'delete' && !window.confirm('Permanently delete this image from Firestore and R2? This cannot be undone.')) return;
+
+    const baseUrl = `/api/admin/guessr/images/${encodeURIComponent(image.id)}`;
+    const request = kind === 'publish'
+      ? { url: `${baseUrl}/publish`, method: 'POST' }
+      : kind === 'reactivate'
+        ? { url: `${baseUrl}/reactivate`, method: 'POST' }
+        : { url: `${baseUrl}${kind === 'delete' ? '?permanent=true' : ''}`, method: 'DELETE' };
+
+    setActionKey(`${image.id}:${kind}`);
+    setError('');
+    try {
+      const response = await api(request.url, { method: request.method });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || `Could not ${kind} image`);
+      await load();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : `Could not ${kind} image`);
+    } finally {
+      setActionKey('');
+    }
   };
 
   return (
@@ -98,8 +115,12 @@ export default function GuessrImages({ refreshKey }: { refreshKey: number }) {
                 <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm"><Meta name="Mode" value={image.mode} /><Meta name="Difficulty" value={image.difficulty} /><Meta name="Target" value={image.targetType} /><Meta name="Map" value={image.mapVersionId} /><Meta name="X" value={image.coordinates.x.toFixed(4)} /><Meta name="Y" value={image.coordinates.y.toFixed(4)} /></div>
                 <div className="flex flex-wrap gap-2">
                   {can('guessr.images.edit') && image.status !== 'disabled' && <button className="btn btn-secondary !min-h-9 !px-3" onClick={() => setEditing(image)}><Edit3 className="size-4" /> Edit</button>}
-                  {can('guessr.images.publish') && image.status === 'draft' && <button className="btn btn-primary !min-h-9 !px-3" onClick={() => void action(image, 'publish')}><Rocket className="size-4" /> Publish</button>}
-                  {can('guessr.images.delete') && image.status !== 'disabled' && <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'disable')}><EyeOff className="size-4" /> Deactivate</button>}
+                  {can('guessr.images.publish') && image.status === 'draft' && <button className="btn btn-primary !min-h-9 !px-3" onClick={() => void action(image, 'publish')} disabled={Boolean(actionKey)}><Rocket className="size-4" /> Publish</button>}
+                  {can('guessr.images.delete') && image.status !== 'disabled' && <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'disable')} disabled={Boolean(actionKey)}><EyeOff className="size-4" /> Deactivate</button>}
+                  {can('guessr.images.delete') && image.status === 'disabled' && <>
+                    <button className="btn btn-secondary !min-h-9 !px-3" onClick={() => void action(image, 'reactivate')} disabled={Boolean(actionKey)}><RotateCcw className="size-4" /> {actionKey === `${image.id}:reactivate` ? 'Reactivating' : 'Reactivate'}</button>
+                    <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'delete')} disabled={Boolean(actionKey)}><Trash2 className="size-4" /> {actionKey === `${image.id}:delete` ? 'Deleting' : 'Delete'}</button>
+                  </>}
                 </div>
               </div>
             </article>

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const env = () => {
@@ -44,4 +44,10 @@ export async function verifyUpload(key: string) {
     contentType: result.ContentType || '',
     imageUrl: `${config.publicBaseUrl}/${key}`,
   };
+}
+
+export async function deleteR2Object(key: string) {
+  if (!key.startsWith('guessr/images/')) throw new Error('Image object key is invalid');
+  const config = env();
+  await client().send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
 }

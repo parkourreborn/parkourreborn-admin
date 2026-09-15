@@ -55,7 +55,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <aside className={sidebarClass}>
         <div className="mb-7 flex h-11 items-center gap-3 overflow-hidden border-b border-line pb-4">
           <img className="size-8 shrink-0 object-contain" src="/logo/logo.webp" alt="Parkour Reborn" />
-          {!collapsed && <div className="min-w-0"><strong className="block truncate font-display text-base uppercase tracking-[0.16em]">PR Hub</strong><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent">Admin control</span></div>}
           <button className="ml-auto text-slate-400 hover:text-white lg:hidden" onClick={() => setNavOpen(false)} aria-label="Close navigation"><X className="size-5" /></button>
         </div>
 
