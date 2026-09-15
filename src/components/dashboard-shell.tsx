@@ -36,7 +36,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <img className="mx-auto mb-6 size-16 object-contain" src="/logo/logo.webp" alt="Parkour Reborn" />
           <LockKeyhole className="mx-auto mb-4 size-8 text-accent" />
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-accent">Restricted access</p>
-          <h1 className="mt-2 font-display text-2xl font-semibold uppercase tracking-wider">Admin sign-in required</h1>
           <p className="mt-3 text-muted">
             {loading || busy ? 'Checking access and opening Discord sign-in…' : error || 'Opening Discord sign-in…'}
           </p>

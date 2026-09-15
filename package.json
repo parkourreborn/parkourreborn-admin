@@ -14,7 +14,7 @@
     "@aws-sdk/client-s3": "^3.890.0",
     "@aws-sdk/s3-request-presigner": "^3.890.0",
     "firebase": "^12.14.0",
-    "firebase-admin": "^14.4.0",
+    "firebase-admin": "13.10.0",
     "lucide-react": "^0.544.0",
     "next": "^16.3.5",
     "react": "^18.3.1",
