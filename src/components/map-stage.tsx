@@ -45,7 +45,6 @@ export default function MapStage({ src, width, height, value, onChange, disabled
         }}
       >
         <MapCanvas key={src} ref={mapRef} className="size-full" image={src} width={width} height={height} value={value} disabled={disabled} onChange={onChange} onZoomChange={setZoom} />
-        <div className="pointer-events-none absolute bottom-3 left-3 border border-line bg-black/70 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-slate-300">Drag to pan · wheel or pinch to zoom · tap to place</div>
       </div>
     </div>
   );
