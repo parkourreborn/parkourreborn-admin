@@ -15,8 +15,9 @@ export async function getActiveGuessrMap(): Promise<GuessrMap> {
   const maps = await getAdminDb().collection('guessrMaps').where('active', '==', true).limit(2).get();
   if (maps.empty) throw new GuessrMapError('No active Guessr map was found. Set exactly one guessrMaps document to active.');
   if (maps.size > 1) throw new GuessrMapError('Multiple active Guessr maps were found. Keep exactly one guessrMaps document active.');
-  const map = mapSchema.safeParse(maps.docs[0].data());
-  if (!map.success) throw new GuessrMapError('The active Guessr map must have a valid url, width, height, and active flag.');
+  const data = maps.docs[0].data();
+  const map = mapSchema.safeParse({ ...data, url: data.url || data.imageUrl });
+  if (!map.success) throw new GuessrMapError('The active Guessr map must have a valid url or imageUrl, width, height, and active flag.');
   return { id: maps.docs[0].id, url: map.data.url, width: map.data.width, height: map.data.height };
 }
 
