@@ -6,8 +6,8 @@ export class GuessrMapError extends Error {}
 
 const mapSchema = z.object({
   url: z.string().url(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
+  width: z.coerce.number().int().positive(),
+  height: z.coerce.number().int().positive(),
   active: z.literal(true),
 });
 
