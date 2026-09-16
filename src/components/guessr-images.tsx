@@ -4,14 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Edit3, EyeOff, RefreshCw, Rocket, RotateCcw, Trash2, X } from 'lucide-react';
 import MapStage from '@/components/map-stage';
 import { useAuth } from '@/components/auth-provider';
-import type { GuessrDifficulty, GuessrImage, GuessrMode, GuessrStatus, MapPoint } from '@/lib/types';
-
-const mapUrl = process.env.NEXT_PUBLIC_GUESSR_MAP_URL || '/maps/parkour-reborn-clean.jpg';
+import type { GuessrDifficulty, GuessrImage, GuessrMap, GuessrMode, GuessrStatus, MapPoint } from '@/lib/types';
 
 type Filters = { mode: string; difficulty: string; status: string };
 const initialFilters: Filters = { mode: 'all', difficulty: 'all', status: 'all' };
 
-export default function GuessrImages({ refreshKey }: { refreshKey: number }) {
+export default function GuessrImages({ map, fallbackMap, refreshKey }: { map: GuessrMap | null; fallbackMap: string; refreshKey: number }) {
   const { admin, api, can } = useAuth();
   const [images, setImages] = useState<GuessrImage[]>([]);
   const [filters, setFilters] = useState(initialFilters);
@@ -114,11 +112,11 @@ export default function GuessrImages({ refreshKey }: { refreshKey: number }) {
                 <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm"><Meta name="Mode" value={image.mode} /><Meta name="Difficulty" value={image.difficulty} /><Meta name="X" value={image.coordinates.x.toFixed(4)} /><Meta name="Y" value={image.coordinates.y.toFixed(4)} /></div>
                 <div className="flex flex-wrap gap-2">
                   {can('guessr.images.edit') && image.status !== 'disabled' && <button className="btn btn-secondary !min-h-9 !px-3" onClick={() => setEditing(image)}><Edit3 className="size-4" /> Edit</button>}
-                  {can('guessr.images.publish') && image.status === 'draft' && <button className="btn btn-primary !min-h-9 !px-3" onClick={() => void action(image, 'publish')} disabled={Boolean(actionKey)}><Rocket className="size-4" /> Publish</button>}
-                  {can('guessr.images.delete') && image.status !== 'disabled' && <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'disable')} disabled={Boolean(actionKey)}><EyeOff className="size-4" /> Deactivate</button>}
+                  {can('guessr.images.publish') && image.status === 'draft' && <button className="btn btn-primary !min-h-9 !px-3" onClick={() => void action(image, 'publish')} disabled={Boolean(actionKey) || !map}><Rocket className="size-4" /> Publish</button>}
+                  {can('guessr.images.delete') && image.status !== 'disabled' && <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'disable')} disabled={Boolean(actionKey) || !map}><EyeOff className="size-4" /> Deactivate</button>}
                   {can('guessr.images.delete') && image.status === 'disabled' && <>
-                    <button className="btn btn-secondary !min-h-9 !px-3" onClick={() => void action(image, 'reactivate')} disabled={Boolean(actionKey)}><RotateCcw className="size-4" /> {actionKey === `${image.id}:reactivate` ? 'Reactivating' : 'Reactivate'}</button>
-                    <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'delete')} disabled={Boolean(actionKey)}><Trash2 className="size-4" /> {actionKey === `${image.id}:delete` ? 'Deleting' : 'Delete'}</button>
+                    <button className="btn btn-secondary !min-h-9 !px-3" onClick={() => void action(image, 'reactivate')} disabled={Boolean(actionKey) || !map}><RotateCcw className="size-4" /> {actionKey === `${image.id}:reactivate` ? 'Reactivating' : 'Reactivate'}</button>
+                    <button className="btn btn-danger !min-h-9 !px-3" onClick={() => void action(image, 'delete')} disabled={Boolean(actionKey) || !map}><Trash2 className="size-4" /> {actionKey === `${image.id}:delete` ? 'Deleting' : 'Delete'}</button>
                   </>}
                 </div>
               </div>
@@ -127,7 +125,7 @@ export default function GuessrImages({ refreshKey }: { refreshKey: number }) {
         </div>
       ))}
 
-      {editing && <ImageEditor image={editing} close={() => setEditing(null)} saved={async () => { setEditing(null); await load(); }} />}
+      {editing && <ImageEditor image={editing} map={map} fallbackMap={fallbackMap} close={() => setEditing(null)} saved={async () => { setEditing(null); await load(); }} />}
     </section>
   );
 }
@@ -140,7 +138,7 @@ function Meta({ name, value }: { name: string; value: string }) {
   return <span className="min-w-0"><small className="block font-mono text-[11px] uppercase tracking-wider text-muted">{name}</small><strong className="block truncate font-normal text-slate-200">{value}</strong></span>;
 }
 
-function ImageEditor({ image, close, saved }: { image: GuessrImage; close: () => void; saved: () => void }) {
+function ImageEditor({ image, map, fallbackMap, close, saved }: { image: GuessrImage; map: GuessrMap | null; fallbackMap: string; close: () => void; saved: () => void }) {
   const { api } = useAuth();
   const [mode, setMode] = useState<GuessrMode>(image.mode);
   const [difficulty, setDifficulty] = useState<GuessrDifficulty>(image.difficulty);
@@ -149,8 +147,9 @@ function ImageEditor({ image, close, saved }: { image: GuessrImage; close: () =>
   const [error, setError] = useState('');
 
   const save = async () => {
+    if (!map) return;
     setBusy(true);
-    const response = await api(`/api/admin/guessr/images/${image.id}`, { method: 'PATCH', body: JSON.stringify({ mode, difficulty, coordinates }) });
+    const response = await api(`/api/admin/guessr/images/${image.id}`, { method: 'PATCH', body: JSON.stringify({ mode, difficulty, coordinates, mapVersionId: map.id }) });
     const data = await response.json() as { error?: string };
     setBusy(false);
     if (!response.ok) return setError(data.error || 'Could not save image');
@@ -165,9 +164,9 @@ function ImageEditor({ image, close, saved }: { image: GuessrImage; close: () =>
           <Filter label="Mode" value={mode} values={['classic', 'graffiti']} onChange={(value) => setMode(value as GuessrMode)} />
           <Filter label="Difficulty" value={difficulty} values={['normal', 'hard']} onChange={(value) => setDifficulty(value as GuessrDifficulty)} />
         </div>
-        <MapStage src={mapUrl} value={coordinates} onChange={setCoordinates} />
+        <MapStage src={map?.url || fallbackMap} width={map?.width || 5688} height={map?.height || 4800} value={coordinates} onChange={setCoordinates} disabled={!map} />
         {error && <p className="mt-4 text-red-300">{error}</p>}
-        <div className="mt-5 flex justify-end gap-2"><button className="btn btn-secondary" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={() => void save()} disabled={busy}>{busy ? 'Saving' : 'Save changes'}</button></div>
+        <div className="mt-5 flex justify-end gap-2"><button className="btn btn-secondary" onClick={close}>Cancel</button><button className="btn btn-primary" onClick={() => void save()} disabled={busy || !map}>{busy ? 'Saving' : map ? 'Save changes' : 'Map setup required'}</button></div>
       </div>
     </div>
   );

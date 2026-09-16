@@ -5,26 +5,29 @@ import { apiError } from '@/lib/server/api';
 import { requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
-import { guessrMapVersionId, imagePatchSchema } from '@/lib/server/guessr-schema';
+import { getActiveGuessrMap, imagePatchSchema } from '@/lib/server/guessr-schema';
 import { deleteR2Object } from '@/lib/server/r2';
 import { imageFromDoc } from '@/lib/server/serializers';
 
 export const runtime = "nodejs";
 
 type Context = { params: Promise<{ id: string }> };
+const patchSchema = imagePatchSchema.extend({ mapVersionId: z.string().trim().min(1) });
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
     const { admin } = await requireAdmin(request.headers.get('authorization'), 'guessr.images.edit');
     const { id } = await context.params;
-    const patch = imagePatchSchema.parse(await request.json());
+    const { mapVersionId, ...patch } = patchSchema.parse(await request.json());
     if (!Object.keys(patch).length) return NextResponse.json({ error: 'No changes supplied' }, { status: 400 });
+    const map = await getActiveGuessrMap();
+    if (mapVersionId !== map.id) return NextResponse.json({ error: 'The active Guessr map changed. Reload before saving.' }, { status: 409 });
 
     const ref = getAdminDb().collection('guessrImages').doc(id);
     if (!(await ref.get()).exists) return NextResponse.json({ error: 'Image not found' }, { status: 404 });
     await ref.update({
       ...patch,
-      mapVersionId: guessrMapVersionId,
+      mapVersionId: map.id,
       targetType: FieldValue.delete(),
       publishedBy: FieldValue.delete(),
       publishedAt: FieldValue.delete(),
@@ -46,6 +49,7 @@ export async function DELETE(request: NextRequest, context: Context) {
     const ref = getAdminDb().collection('guessrImages').doc(id);
     const doc = await ref.get();
     if (!doc.exists) return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+    await getActiveGuessrMap();
 
     if (request.nextUrl.searchParams.get('permanent') === 'true') {
       const data = doc.data() || {};

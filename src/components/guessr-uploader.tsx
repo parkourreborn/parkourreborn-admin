@@ -4,10 +4,9 @@ import { useRef, useState } from 'react';
 import { Check, ImagePlus, UploadCloud, X } from 'lucide-react';
 import MapStage from '@/components/map-stage';
 import { useAuth } from '@/components/auth-provider';
-import type { GuessrDifficulty, GuessrMode, MapPoint } from '@/lib/types';
+import type { GuessrDifficulty, GuessrMap, GuessrMode, MapPoint } from '@/lib/types';
 
 const maxBytes = 4 * 1024 * 1024;
-const defaultMap = process.env.NEXT_PUBLIC_GUESSR_MAP_URL || '/maps/parkour-reborn-clean.jpg';
 
 const webp = async (file: File) => {
   const bitmap = await createImageBitmap(file);
@@ -31,7 +30,7 @@ const uploadPut = (url: string, file: File, progress: (value: number) => void) =
   request.send(file);
 });
 
-export default function GuessrUploader({ onUploaded }: { onUploaded: () => void }) {
+export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: GuessrMap | null; fallbackMap: string; onUploaded: () => void }) {
   const { api, can, setup } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -70,7 +69,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
     try {
       const init = await api('/api/admin/uploads/init', {
         method: 'POST',
-        body: JSON.stringify({ fileName: file.name, contentType: 'image/webp', bytes: file.size, mode, difficulty, coordinates: point }),
+        body: JSON.stringify({ fileName: file.name, contentType: 'image/webp', bytes: file.size, mode, difficulty, coordinates: point, mapVersionId: map?.id }),
       });
       const initData = await init.json() as { uploadId?: string; uploadUrl?: string; error?: string };
       if (!init.ok || !initData.uploadId || !initData.uploadUrl) throw new Error(initData.error || 'Could not initialize upload');
@@ -92,7 +91,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
     }
   };
 
-  const liveReady = Boolean(setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.images.create'));
+  const liveReady = Boolean(map && setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.images.create'));
 
   return (
     <section className="panel p-5 sm:p-6">
@@ -122,7 +121,7 @@ export default function GuessrUploader({ onUploaded }: { onUploaded: () => void 
           <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !liveReady}>{busy ? `Uploading ${progress}%` : liveReady ? 'Upload draft' : 'Upload unavailable — finish setup'}</button>
         </div>
 
-        <div><p className="label mb-2">Map target</p><MapStage src={defaultMap} value={point} onChange={setPoint} /></div>
+        <div><p className="label mb-2">Map target</p><MapStage src={map?.url || fallbackMap} width={map?.width || 5688} height={map?.height || 4800} value={point} onChange={setPoint} disabled={!map} /></div>
       </div>
     </section>
   );

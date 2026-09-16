@@ -5,7 +5,7 @@ import { apiError } from '@/lib/server/api';
 import { requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
-import { guessrMapVersionId } from '@/lib/server/guessr-schema';
+import { getActiveGuessrMap } from '@/lib/server/guessr-schema';
 import { imageFromDoc } from '@/lib/server/serializers';
 import { verifyUpload } from '@/lib/server/r2';
 
@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
     if (!session.exists || data?.uid !== admin.uid || Number(data.expiresAtMs || 0) < Date.now()) {
       return NextResponse.json({ error: 'Upload session is invalid or expired' }, { status: 400 });
     }
+    const map = await getActiveGuessrMap();
+    if (data.mapVersionId !== map.id) return NextResponse.json({ error: 'The active Guessr map changed. Start the upload again.' }, { status: 409 });
 
     const object = await verifyUpload(String(data.objectKey));
     if (object.bytes <= 0 || object.bytes > maxBytes || object.contentType !== 'image/webp' || object.bytes !== Number(data.bytes)) {
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
         mode: data.mode,
         difficulty: data.difficulty,
         coordinates: data.coordinates,
-        mapVersionId: guessrMapVersionId,
+        mapVersionId: map.id,
         status: 'draft',
         createdBy: admin.uid,
         createdAt: FieldValue.serverTimestamp(),
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
       });
       transaction.delete(sessionRef);
     });
-    await writeAudit(admin.uid, 'guessr.image.uploaded', uploadId, { mapVersionId: guessrMapVersionId });
+    await writeAudit(admin.uid, 'guessr.image.uploaded', uploadId, { mapVersionId: map.id });
     return NextResponse.json({ image: imageFromDoc(await imageRef.get()) }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid upload session' }, { status: 400 });

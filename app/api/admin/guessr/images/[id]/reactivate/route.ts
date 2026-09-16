@@ -4,6 +4,7 @@ import { apiError } from '@/lib/server/api';
 import { requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
+import { getActiveGuessrMap } from '@/lib/server/guessr-schema';
 import { imageFromDoc } from '@/lib/server/serializers';
 
 export const runtime = "nodejs";
@@ -17,10 +18,11 @@ export async function POST(request: NextRequest, context: Context) {
     const ref = getAdminDb().collection('guessrImages').doc(id);
     const doc = await ref.get();
     if (!doc.exists) return NextResponse.json({ error: 'Image not found' }, { status: 404 });
+    const map = await getActiveGuessrMap();
 
     const data = doc.data() || {};
     if (data.status !== 'disabled') return NextResponse.json({ error: 'Image is not disabled' }, { status: 409 });
-    const status = data.statusBeforeDisabled === 'published' ? 'published' : 'draft';
+    const status = data.statusBeforeDisabled === 'published' && data.mapVersionId === map.id ? 'published' : 'draft';
     await ref.update({
       status,
       statusBeforeDisabled: FieldValue.delete(),

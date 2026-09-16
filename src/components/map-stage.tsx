@@ -1,17 +1,25 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { LocateFixed, Minus, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from 'lucide-react';
 import type { MapPoint } from '@/lib/types';
 
 type Drag = { id: number; x: number; y: number; startX: number; startY: number; moved: boolean };
 
-export default function MapStage({ src, value, onChange, disabled = false }: { src: string; value: MapPoint | null; onChange: (point: MapPoint) => void; disabled?: boolean }) {
+export default function MapStage({ src, width, height, value, onChange, disabled = false }: { src: string; width: number; height: number; value: MapPoint | null; onChange: (point: MapPoint) => void; disabled?: boolean }) {
+  const viewerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const update = () => setFullscreen(document.fullscreenElement === viewerRef.current);
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
 
   const clampZoom = (next: number) => Math.min(5, Math.max(1, next));
   const zoomAt = (next: number, clientX?: number, clientY?: number) => {
@@ -38,17 +46,18 @@ export default function MapStage({ src, value, onChange, disabled = false }: { s
   };
 
   return (
-    <div>
+    <div ref={viewerRef} className={fullscreen ? 'flex size-full flex-col bg-[#060a10] p-3 sm:p-5' : ''}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => zoomAt(zoom - 0.35)} aria-label="Zoom out"><Minus className="size-4" /></button>
         <span className="min-w-16 text-center font-mono text-xs text-muted">{Math.round(zoom * 100)}%</span>
         <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => zoomAt(zoom + 0.35)} aria-label="Zoom in"><Plus className="size-4" /></button>
         <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}><LocateFixed className="size-4" /> Reset view</button>
+        <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : viewerRef.current?.requestFullscreen())}>{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />} {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</button>
         <span className="ml-auto font-mono text-xs text-muted">{value ? `x ${value.x.toFixed(4)} · y ${value.y.toFixed(4)}` : 'No target selected'}</span>
       </div>
       <div
         ref={stageRef}
-        className={`relative h-[320px] overflow-hidden border border-line bg-black/45 sm:h-[430px] ${disabled ? 'opacity-60' : ''}`}
+        className={`relative overflow-hidden border border-line bg-black/45 ${fullscreen ? 'min-h-0 flex-1' : 'h-[320px] sm:h-[430px]'} ${disabled ? 'opacity-60' : ''}`}
         style={{ touchAction: 'none' }}
         onWheel={(event) => { event.preventDefault(); zoomAt(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX, event.clientY); }}
         onPointerDown={(event) => {
@@ -76,7 +85,7 @@ export default function MapStage({ src, value, onChange, disabled = false }: { s
         }}
         onPointerCancel={() => { dragRef.current = null; }}
       >
-        <div ref={layerRef} className="absolute left-0 top-0 w-full origin-top-left select-none" style={{ aspectRatio: '5688 / 4800', transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+        <div ref={layerRef} className="absolute left-0 top-0 w-full origin-top-left select-none" style={{ aspectRatio: `${width} / ${height}`, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
           <img src={src} alt="Parkour Reborn map" className="pointer-events-none block size-full object-contain" draggable={false} />
           {value && <span className="absolute grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-accent shadow-[0_0_0_6px_rgba(54,185,236,0.22),0_4px_14px_rgba(0,0,0,0.8)]" style={{ left: `${value.x * 100}%`, top: `${value.y * 100}%` }}><span className="size-1.5 rounded-full bg-[#041018]" /></span>}
         </div>

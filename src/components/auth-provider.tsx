@@ -9,7 +9,7 @@ import type { AdminProfile, Permission } from '@/lib/types';
 
 const publicSiteUrl = 'https://parkourreborn.com';
 
-export type SetupStatus = { firebaseClient: boolean; firebaseAdmin: boolean; discord: boolean; r2: boolean; map: boolean };
+export type SetupStatus = { firebaseClient: boolean; firebaseAdmin: boolean; discord: boolean; r2: boolean; map: boolean; mapError: string };
 
 type AuthValue = {
   user: User | null;

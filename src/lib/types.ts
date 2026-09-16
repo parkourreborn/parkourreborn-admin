@@ -38,6 +38,13 @@ export type AdminProfile = {
 
 export type MapPoint = { x: number; y: number };
 
+export type GuessrMap = {
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+};
+
 export type GuessrImage = {
   id: string;
   objectKey: string;
