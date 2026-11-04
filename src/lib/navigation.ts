@@ -1,6 +1,6 @@
 import type { Permission } from '@/lib/types';
 
-export type NavigationIcon = 'overview' | 'games' | 'guessr' | 'content' | 'announcement' | 'techs' | 'trials' | 'media' | 'links' | 'files' | 'audit' | 'admins';
+export type NavigationIcon = 'overview' | 'games' | 'guessr' | 'content' | 'announcement' | 'techs' | 'trials' | 'media' | 'links' | 'files' | 'audit' | 'admins' | 'ai';
 
 export type NavigationItem = {
   label: string;
@@ -34,6 +34,7 @@ export const navigation: NavigationGroup[] = [
       { label: 'Files', href: '/hub/files', permission: 'files.view', icon: 'files' },
     ],
   },
+  { items: [{ label: 'Reborn AI', href: '/rebornai', permission: 'rebornai.view', icon: 'ai' }] },
   { items: [{ label: 'Audit Trail', href: '/audit', permission: 'audit.view', icon: 'audit' }] },
   { items: [{ label: 'Admins & Permissions', href: '/admins', permission: 'admins.view', icon: 'admins' }] },
 ];

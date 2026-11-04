@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Bell, ChevronDown, ChevronLeft, FileText, FolderKanban, Gamepad2, Gauge, ImageIcon,
+  Bell, Bot, ChevronDown, ChevronLeft, FileText, FolderKanban, Gamepad2, Gauge, ImageIcon,
   Link2, ListChecks, LockKeyhole, LogOut, Menu, ScrollText, Shield, Timer, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -26,6 +26,7 @@ const icons: Record<NavigationIcon, LucideIcon> = {
   files: FileText,
   audit: ScrollText,
   admins: Shield,
+  ai: Bot,
 };
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {

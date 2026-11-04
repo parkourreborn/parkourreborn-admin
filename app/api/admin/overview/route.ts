@@ -1,3 +1,4 @@
+import { Timestamp } from 'firebase-admin/firestore';
 import type { Query } from 'firebase-admin/firestore';
 import { NextRequest, NextResponse } from 'next/server';
 import { apiError } from '@/lib/server/api';
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       can('announcements.view') ? count(db.collection('announcements').where('active', '==', false)).then((value) => ({ key: 'announcement-drafts', label: 'Unpublished announcements', count: value, href: '/hub/announcements' })) : Promise.resolve(null),
       can('techs.view') ? count(db.collection('movement').where('active', '==', false)).then((value) => ({ key: 'techs-disabled', label: 'Disabled techs', count: value, href: '/hub/techs' })) : Promise.resolve(null),
       can('timetrials.view') ? count(db.collection('timetrials').where('active', '==', false)).then((value) => ({ key: 'trials-disabled', label: 'Disabled time trials', count: value, href: '/hub/timetrials' })) : Promise.resolve(null),
+      can('rebornai.view') ? count(db.collection('aiGaps').where('at', '>=', Timestamp.fromMillis(Date.now() - 7 * 86_400_000))).then((value) => ({ key: 'rebornai-gaps', label: 'Reborn AI knowledge gaps (7 days)', count: value, href: '/rebornai' })) : Promise.resolve(null),
     ];
     const [statsSettled, attentionSettled, logs] = await Promise.all([
       Promise.allSettled(statTasks),

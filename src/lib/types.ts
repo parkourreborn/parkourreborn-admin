@@ -19,6 +19,7 @@ export const permissions = [
   'links.manage',
   'files.view',
   'files.manage',
+  'rebornai.view',
   'admins.view',
 ] as const;
 
@@ -89,4 +90,59 @@ export type ContentRecord = {
   data: Record<string, unknown>;
   createdAt: string | null;
   updatedAt: string | null;
+};
+
+// Reborn AI request logs (aiLogs) and unanswered questions (aiGaps), written
+// by the hub. See ../parkourreborn/src/lib/reborn-ai/ai-log.ts.
+export type RebornAiAttempt = { model: string; result: string; ms: number; status?: number; detail?: string };
+export type RebornAiFeedback = { vote: 'up' | 'down'; note: string; triage: string | null };
+
+export type RebornAiLog = {
+  id: string;
+  at: string | null;
+  question: string;
+  answer: string;
+  outcome: string;
+  check: string;
+  routes: string[];
+  answerModel: string;
+  totalMs: number | null;
+  escalated: boolean;
+  cut: boolean;
+  jevRouted: boolean;
+  viewer: boolean;
+  error: string | null;
+  models: RebornAiAttempt[];
+  feedback: RebornAiFeedback | null;
+};
+
+export type RebornAiDetail = RebornAiLog & {
+  handling: string;
+  style: number | null;
+  guard: string | null;
+  entities: Record<string, unknown>;
+  tools: { name: string; status: string }[];
+  chunks: string[];
+  jev: Record<string, unknown>;
+  timings: Record<string, number>;
+  facts: string;
+};
+
+export type RebornAiGap = { id: string; at: string | null; question: string; routes: string[]; answerable: number | null; escalated: boolean };
+
+export type RebornAiReport = {
+  sample: number;
+  since: string | null;
+  outcomes: Record<string, number>;
+  checks: Record<string, number>;
+  averageMs: number;
+  medianMs: number;
+  escalated: number;
+  jevRouted: number;
+  feedback: { up: number; down: number };
+  quota: { used?: number; limit?: number; remaining?: number } | null;
+  configuredModels: string[];
+  models: { model: string; tries: number; ok: number; failures: Record<string, number>; averageMs: number }[];
+  logs: RebornAiLog[];
+  gaps: RebornAiGap[];
 };

@@ -7,6 +7,7 @@ export const permissionGroups: { label: string; permissions: Permission[] }[] = 
   { label: 'Parkour Guessr', permissions: ['guessr.view', 'guessr.images.create', 'guessr.images.edit', 'guessr.images.publish', 'guessr.images.delete'] },
   { label: 'Media', permissions: ['media.view', 'media.upload', 'media.delete'] },
   { label: 'Hub content', permissions: ['techs.view', 'techs.manage', 'timetrials.view', 'timetrials.manage', 'links.view', 'links.manage', 'files.view', 'files.manage'] },
+  { label: 'Reborn AI', permissions: ['rebornai.view'] },
   { label: 'Administration', permissions: ['admins.view'] },
 ];
 
@@ -32,6 +33,7 @@ export const normalizePermissions = (selected: Permission[]) => Array.from(new S
 
 export const permissionLabel = (permission: Permission) => permission
   .replace('timetrials', 'time trials')
+  .replace('rebornai', 'reborn AI')
   .replace('guessr.images.', 'Guessr images: ')
   .replace('.', ': ')
   .replace(/\b\w/g, (character) => character.toUpperCase());
