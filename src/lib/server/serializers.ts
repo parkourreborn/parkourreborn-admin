@@ -18,7 +18,13 @@ export const imageFromDoc = (doc: DocumentSnapshot): GuessrImage => {
     difficulty: data.difficulty === 'hard' ? 'hard' : 'normal',
     status: data.status === 'published' || data.status === 'disabled' ? data.status : 'draft',
     coordinates: { x: Number(data.coordinates?.x || 0), y: Number(data.coordinates?.y || 0) },
+    mapVersionId: String(data.mapVersionId || ''),
     createdBy: String(data.createdBy || ''),
+    disabledBy: typeof data.disabledBy === 'string' ? data.disabledBy : null,
+    everPublished: Boolean(data.firstPublishedAt) || data.status === 'published' || data.statusBeforeDisabled === 'published',
+    nearbyAcknowledged: Array.isArray(data.nearbyAcknowledged)
+      ? data.nearbyAcknowledged.flatMap((item: unknown) => item && typeof item === 'object' && 'imageId' in item && typeof item.imageId === 'string' ? [item.imageId] : [])
+      : [],
     createdAt: iso(data.createdAt),
     updatedAt: iso(data.updatedAt),
   };
@@ -44,6 +50,7 @@ export const announcementFromDoc = (doc: DocumentSnapshot): Announcement => {
     message: String(data.message || ''),
     active: data.active === true,
     author: String(data.author || data.createdBy || ''),
+    createdBy: String(data.createdBy || ''),
     createdAt: iso(data.createdAt),
     updatedAt: iso(data.updatedAt),
     expiresAt: iso(data.expiresAt),
@@ -56,6 +63,7 @@ export const mediaFromDoc = (doc: DocumentSnapshot): MediaItem => {
     id: doc.id,
     link: String(data.link || data.publicUrl || ''),
     redirect: String(data.redirect || ''),
+    createdBy: typeof data.createdBy === 'string' && data.createdBy ? data.createdBy : null,
   };
 };
 

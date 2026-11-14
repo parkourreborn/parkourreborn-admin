@@ -3,8 +3,9 @@ import 'server-only';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { getAdminAuth, getAdminDb } from '@/lib/server/firebase-admin';
-import { allPermissions, isPermission } from '@/lib/permissions';
+import { allPermissions, readPermissions } from '@/lib/permissions';
 import { isOwnerIdentity, OWNER_DISCORD_ID, OWNER_UID } from '@/lib/server/owner';
+import type { Verdict } from '@/lib/policy';
 import type { AdminProfile, Permission } from '@/lib/types';
 
 export class AdminAuthError extends Error {
@@ -54,11 +55,10 @@ export async function loadAdmin(uid: string, discordId?: string): Promise<AdminP
 
   const data = doc.data() || {};
   if (!owner && data.disabled === true) throw new AdminAuthError('This admin account is disabled');
-  const explicit = Array.isArray(data.permissions) ? data.permissions.filter(isPermission) : [];
 
   return {
     uid,
-    permissions: owner ? allPermissions : Array.from(new Set(explicit)),
+    permissions: owner ? allPermissions : readPermissions(data.permissions),
     displayName: typeof data.displayName === 'string' ? data.displayName : owner ? 'ElkkuT' : 'Admin',
     avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : null,
     disabled: false,
@@ -77,6 +77,11 @@ export async function requireAdmin(header: string | null, permission: Permission
   const result = await authenticateAdmin(header);
   if (!result.admin.permissions.includes(permission)) throw new AdminAuthError('Missing permission');
   return result;
+}
+
+// Turns a policy verdict into the matching HTTP error.
+export function assertAllowed(verdict: Verdict) {
+  if (!verdict.ok) throw new AdminAuthError(verdict.reason, verdict.kind === 'state' ? 409 : 403);
 }
 
 export async function requireOwner(header: string | null) {

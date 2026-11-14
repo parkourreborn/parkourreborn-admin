@@ -5,6 +5,7 @@ import { Edit3, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import AccessState from '@/components/access-state';
 import Modal from '@/components/modal';
 import { useAuth } from '@/components/auth-provider';
+import { ownedCan } from '@/lib/policy';
 import type { Announcement } from '@/lib/types';
 
 const emptyDraft = { title: '', message: '', active: true, expiresAt: '' };
@@ -81,14 +82,15 @@ export default function Announcements({ compact = false, onChanged }: { compact?
   };
 
   const shown = compact ? items.slice(0, 5) : items;
-  const manage = can('announcements.manage');
+  const create = can('announcements.contribute');
+  const canChange = (item: Announcement) => Boolean(admin && ownedCan(admin, 'announcements', item.createdBy).ok);
 
   return <AccessState permission="announcements.view">
     <section className="panel">
       <div className="section-head">
         <h2 className="section-title">Announcements</h2>
         <span className="badge">{items.length}</span>
-        {manage && <button className="btn btn-primary btn-sm ml-auto" onClick={() => open('new')}><Plus /> New</button>}
+        {create && <button className="btn btn-primary btn-sm ml-auto" onClick={() => open('new')}><Plus /> New</button>}
       </div>
       {error && !editing && <p className="note note--bad m-4">{error}</p>}
       <div className="rows">{shown.map((item) => {
@@ -101,7 +103,7 @@ export default function Announcements({ compact = false, onChanged }: { compact?
             <span className="row__sub">{item.message}</span>
           </div>
           <time className="time hidden sm:block" title={item.expiresAt ? `Expires ${formatDate(item.expiresAt)}` : undefined}>{formatDate(item.updatedAt || item.createdAt)}</time>
-          {manage && <div className="flex shrink-0">
+          {canChange(item) && <div className="flex shrink-0">
             <button className="icon-btn" onClick={() => open(item)} title="Edit" aria-label="Edit"><Edit3 /></button>
             <button className="icon-btn" onClick={() => void toggle(item)} title={item.active ? 'Hide' : 'Publish'} aria-label={item.active ? 'Hide' : 'Publish'}>{item.active ? <EyeOff /> : <Eye />}</button>
             {!compact && <button className="icon-btn icon-btn--danger" onClick={() => void remove(item)} title="Delete" aria-label="Delete"><Trash2 /></button>}

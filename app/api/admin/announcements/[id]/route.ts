@@ -2,24 +2,27 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError } from '@/lib/server/api';
-import { requireAdmin } from '@/lib/server/admin-auth';
+import { assertAllowed, requireAdmin } from '@/lib/server/admin-auth';
 import { announcementPatchSchema } from '@/lib/server/announcement-schema';
 import { writeAudit } from '@/lib/server/audit';
 import { documentIdSchema } from '@/lib/server/content-sections';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { announcementFromDoc } from '@/lib/server/serializers';
+import { ownedCan } from '@/lib/policy';
 
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'announcements.manage');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'announcements.contribute');
     const id = documentIdSchema.parse((await context.params).id);
     const body = announcementPatchSchema.parse(await request.json());
     if (!Object.keys(body).length) return NextResponse.json({ error: 'No changes supplied' }, { status: 400 });
     const ref = getAdminDb().collection('announcements').doc(id);
-    if (!(await ref.get()).exists) return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
+    const current = await ref.get();
+    if (!current.exists) return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
+    assertAllowed(ownedCan(admin, 'announcements', current.data()?.createdBy));
     const patch = {
       ...body,
       ...(Object.hasOwn(body, 'expiresAt') ? { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null } : {}),
@@ -40,10 +43,12 @@ export async function PATCH(request: NextRequest, context: Context) {
 
 export async function DELETE(request: NextRequest, context: Context) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'announcements.manage');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'announcements.contribute');
     const id = documentIdSchema.parse((await context.params).id);
     const ref = getAdminDb().collection('announcements').doc(id);
-    if (!(await ref.get()).exists) return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
+    const current = await ref.get();
+    if (!current.exists) return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
+    assertAllowed(ownedCan(admin, 'announcements', current.data()?.createdBy));
     await ref.delete();
     await writeAudit(admin.uid, 'announcement.deleted', id);
     return NextResponse.json({ ok: true });

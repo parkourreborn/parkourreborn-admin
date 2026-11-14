@@ -5,6 +5,7 @@ import { Check, Clipboard, Edit3, ImagePlus, Trash2, UploadCloud } from 'lucide-
 import AccessState from '@/components/access-state';
 import Modal from '@/components/modal';
 import { useAuth } from '@/components/auth-provider';
+import { ownedCan } from '@/lib/policy';
 import type { MediaItem } from '@/lib/types';
 
 const maxBytes = 4 * 1024 * 1024;
@@ -188,8 +189,10 @@ export default function MediaManager() {
 
   const accept = '.gif,.png,.jpg,.jpeg,.webp,image/gif,image/png,image/jpeg,image/webp';
 
+  const canChange = (item: MediaItem) => Boolean(admin && ownedCan(admin, 'media', item.createdBy).ok);
+
   return <AccessState permission="media.view">
-    {can('media.upload') && <section className="panel panel--pad">
+    {can('media.contribute') && <section className="panel panel--pad">
       <div className="section-head">
         <h2 className="section-title">Add GIF</h2>
         <div className="tabs ml-auto" aria-label="Source">
@@ -228,8 +231,8 @@ export default function MediaManager() {
           </div>
           <div className="flex shrink-0">
             <button type="button" className="icon-btn" onClick={() => void copy(item)} title="Copy URL" aria-label="Copy URL">{copied === item.id ? <Check className="text-[#8fe6b4]" /> : <Clipboard />}</button>
-            {can('media.upload') && <button type="button" className="icon-btn" onClick={() => openEdit(item)} title="Edit" aria-label="Edit"><Edit3 /></button>}
-            {can('media.delete') && <button type="button" className="icon-btn icon-btn--danger" onClick={() => void remove(item)} title="Delete" aria-label="Delete"><Trash2 /></button>}
+            {canChange(item) && <button type="button" className="icon-btn" onClick={() => openEdit(item)} title="Edit" aria-label="Edit"><Edit3 /></button>}
+            {canChange(item) && <button type="button" className="icon-btn icon-btn--danger" onClick={() => void remove(item)} title="Delete" aria-label="Delete"><Trash2 /></button>}
           </div>
         </article>)}
       </div>

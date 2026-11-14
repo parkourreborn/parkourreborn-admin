@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.upload');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.contribute');
     const body = mediaCreateSchema.parse(await request.json());
     const db = getAdminDb();
     const ref = db.collection('gifs').doc(body.label);
     await db.runTransaction(async (transaction) => {
       if ((await transaction.get(ref)).exists) throw new Error('CONFLICT');
-      transaction.create(ref, { link: body.link, redirect: body.redirect });
+      transaction.create(ref, { link: body.link, redirect: body.redirect, createdBy: admin.uid });
     });
     await writeAudit(admin.uid, 'media.created', body.label, { source: 'url' });
     return NextResponse.json({ media: mediaFromDoc(await ref.get()) }, { status: 201 });

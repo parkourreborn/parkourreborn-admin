@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError } from '@/lib/server/api';
-import { requireAdmin } from '@/lib/server/admin-auth';
+import { assertAllowed, requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { maxMediaBytes, mediaMimeTypes } from '@/lib/server/media-schema';
 import { deleteR2Object, r2ObjectKeyFromPublicUrl, verifyUpload } from '@/lib/server/r2';
 import { mediaFromDoc } from '@/lib/server/serializers';
+import { ownedCan } from '@/lib/policy';
 
 export const runtime = 'nodejs';
 const schema = z.object({ uploadId: z.string().uuid() }).strict();
 
 export async function POST(request: NextRequest) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.upload');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.contribute');
     const { uploadId } = schema.parse(await request.json());
     const db = getAdminDb();
     const sessionRef = db.collection('rateLimits').doc(`upload-session-media-${uploadId}`);
@@ -45,15 +46,17 @@ export async function POST(request: NextRequest) {
           const currentRef = db.collection('gifs').doc(replaceId);
           const current = await transaction.get(currentRef);
           if (!current.exists) throw new Error('NOT_FOUND');
+          assertAllowed(ownedCan(admin, 'media', current.data()?.createdBy));
           if (replaceId !== label && (await transaction.get(ref)).exists) throw new Error('CONFLICT');
-          transaction.set(ref, { link: object.imageUrl, redirect });
+          const createdBy = current.data()?.createdBy;
+          transaction.set(ref, { link: object.imageUrl, redirect, ...(typeof createdBy === 'string' && createdBy ? { createdBy } : {}) });
           if (replaceId !== label) transaction.delete(currentRef);
           transaction.delete(sessionRef);
           return String(current.data()?.link || current.data()?.publicUrl || '');
         }
 
         if ((await transaction.get(ref)).exists) throw new Error('CONFLICT');
-        transaction.create(ref, { link: object.imageUrl, redirect });
+        transaction.create(ref, { link: object.imageUrl, redirect, createdBy: admin.uid });
         transaction.delete(sessionRef);
         return '';
       });

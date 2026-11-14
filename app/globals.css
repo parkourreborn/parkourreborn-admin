@@ -1564,6 +1564,102 @@ button.row:hover {
   color: #68df9a;
 }
 
+/* Other Guessr images in the same pool, and the warning ring around the pin. */
+.map-dot {
+  position: absolute;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #05080d;
+  border-radius: 999px;
+  background: rgba(54, 185, 236, 0.85);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.map-dot--close {
+  background: #ffc45c;
+}
+
+.map-dot--veryClose {
+  background: var(--hub-danger);
+}
+
+.map-canvas__ring {
+  fill: rgba(255, 196, 92, 0.06);
+  stroke: rgba(255, 196, 92, 0.7);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The "really close" prompt: this image next to the nearby one. */
+.compare {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compare figure {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.compare img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--hub-border-soft);
+  border-radius: 2px;
+  background: var(--hub-media-bg);
+  object-fit: cover;
+}
+
+.compare figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Access level picker on the admins page. */
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.levels button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hub-border);
+  border-radius: 2px;
+  background: var(--hub-control-bg);
+  color: var(--hub-muted);
+  font-family: var(--font-jura), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.levels button:hover:not(:disabled) {
+  border-color: var(--hub-accent-line);
+  color: var(--hub-text);
+}
+
+.levels button.is-on {
+  border-color: var(--hub-game-line-strong);
+  background: var(--hub-control-active-bg);
+  color: var(--hub-text-strong);
+}
+
+.levels button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {

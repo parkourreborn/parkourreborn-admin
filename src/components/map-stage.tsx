@@ -3,10 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from 'lucide-react';
 import { MapCanvas } from '@/components/map-canvas';
-import type { MapCanvasHandle } from '@/components/map-canvas';
+import type { MapCanvasHandle, MapDot } from '@/components/map-canvas';
 import type { MapPoint } from '@/lib/types';
 
-export default function MapStage({ src, width, height, value, onChange, disabled = false }: { src: string; width: number; height: number; value: MapPoint | null; onChange: (point: MapPoint) => void; disabled?: boolean }) {
+export default function MapStage({ src, width, height, value, onChange, disabled = false, dots, ring, footer }: {
+  src: string;
+  width: number;
+  height: number;
+  value: MapPoint | null;
+  onChange: (point: MapPoint) => void;
+  disabled?: boolean;
+  dots?: MapDot[];
+  ring?: number;
+  footer?: React.ReactNode;
+}) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapCanvasHandle>(null);
   const [zoom, setZoom] = useState(1);
@@ -44,8 +54,9 @@ export default function MapStage({ src, width, height, value, onChange, disabled
           });
         }}
       >
-        <MapCanvas key={src} ref={mapRef} className="size-full" image={src} width={width} height={height} value={value} disabled={disabled} onChange={onChange} onZoomChange={setZoom} />
+        <MapCanvas key={src} ref={mapRef} className="size-full" image={src} width={width} height={height} value={value} disabled={disabled} onChange={onChange} onZoomChange={setZoom} labels={{ value: 'Image location' }} dots={dots} ring={ring} />
       </div>
+      {footer}
     </div>
   );
 }

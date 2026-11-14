@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'announcements.manage');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'announcements.contribute');
     const body = announcementSchema.parse(await request.json());
     const ref = getAdminDb().collection('announcements').doc();
     await ref.create({

@@ -6,12 +6,13 @@ import AccessState from '@/components/access-state';
 import Announcements from '@/components/announcements';
 import { AuditRows } from '@/components/audit-trail';
 import { useAuth } from '@/components/auth-provider';
-import type { AuditEntry } from '@/lib/types';
+import type { AuditEntry, People } from '@/lib/types';
 
 type OverviewData = {
   stats: { key: string; label: string; value: number; href: string }[];
   attention: { key: string; label: string; count: number; href: string }[];
   activity: AuditEntry[];
+  people?: People;
 };
 
 export default function Overview() {
@@ -52,7 +53,7 @@ export default function Overview() {
 
       {can('audit.view') && <section className="panel">
         <div className="section-head"><h2 className="section-title">Activity</h2><Link href="/audit" className="btn btn-secondary btn-sm ml-auto">All</Link></div>
-        {data?.activity.length ? <AuditRows entries={data.activity} /> : <p className="empty">{data ? 'No activity' : 'Loading'}</p>}
+        {data?.activity.length ? <AuditRows entries={data.activity} people={data.people} /> : <p className="empty">{data ? 'No activity' : 'Loading'}</p>}
       </section>}
     </AccessState>
   );

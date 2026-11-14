@@ -3,6 +3,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { MapPoint } from '@/lib/types';
 
+// Small dots for other images on the map; "close" and "veryClose" ones are
+// within the warning distance of the placed pin.
+export type MapDot = { id: string; point: MapPoint; tone: 'pool' | 'close' | 'veryClose' };
+
 type MapCanvasProps = {
   image: string;
   width?: number;
@@ -13,6 +17,12 @@ type MapCanvasProps = {
   disabled?: boolean;
   className?: string;
   alt?: string;
+  labels?: { value?: string; target?: string };
+  dots?: MapDot[];
+  // Ring around the placed pin, in map image pixels.
+  ring?: number;
+  // Zoom in so both points are in view, for comparing two nearby spots.
+  frame?: [MapPoint, MapPoint] | null;
   onChange?: (point: MapPoint) => void;
   onZoomChange?: (zoom: number) => void;
   onLoad?: () => void;
@@ -42,6 +52,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
   disabled = false,
   className = '',
   alt = 'PARKOUR Reborn world map',
+  labels,
+  dots,
+  ring,
+  frame = null,
   onChange,
   onZoomChange,
   onLoad,
@@ -123,6 +137,18 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
   useEffect(() => {
     setPan((current) => clampPan(current));
   }, [clampPan]);
+
+  const [frameA, frameB] = frame ?? [null, null];
+  useEffect(() => {
+    if (!frameA || !frameB || !ready || !base.width || !base.height) return;
+    const separation = Math.hypot((frameA.x - frameB.x) * base.width, (frameA.y - frameB.y) * base.height);
+    const nextZoom = clamp((Math.min(size.width, size.height) * 0.35) / Math.max(separation, 0.5), 1, 24);
+    const center = { x: (frameA.x + frameB.x) / 2, y: (frameA.y + frameB.y) / 2 };
+    setZoom(nextZoom);
+    setPan(clampPan({ x: -(center.x - 0.5) * base.width * nextZoom, y: -(center.y - 0.5) * base.height * nextZoom }, nextZoom));
+    // Only re-frame when the points or the stage change, not on every pan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameA?.x, frameA?.y, frameB?.x, frameB?.y, ready, base.width, base.height, size.width, size.height]);
 
   const pointInStage = (clientX: number, clientY: number) => {
     const rect = stageRef.current?.getBoundingClientRect();
@@ -270,12 +296,20 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(function Ma
               onError?.();
             }}
           />
+          {dots?.map((dot) => (
+            <span key={dot.id} className={`map-dot map-dot--${dot.tone}`} style={{ left: `${dot.point.x * 100}%`, top: `${dot.point.y * 100}%` }} aria-hidden="true" />
+          ))}
+          {value && ring ? (
+            <svg className="map-canvas__line" viewBox={`0 0 ${mapWidth} ${mapHeight}`} preserveAspectRatio="none" aria-hidden="true">
+              <circle className="map-canvas__ring" cx={value.x * mapWidth} cy={value.y * mapHeight} r={ring} />
+            </svg>
+          ) : null}
           {value && target && (
             <svg className="map-canvas__line" viewBox={`0 0 ${mapWidth} ${mapHeight}`} preserveAspectRatio="none" aria-hidden="true">
               <line x1={value.x * mapWidth} y1={value.y * mapHeight} x2={target.x * mapWidth} y2={target.y * mapHeight} />
             </svg>
           )}
-          {[{ point: value, name: 'guess', label: 'Your guess' }, { point: target, name: 'target', label: 'Actual location' }].map(({ point, name, label }) => point && (
+          {[{ point: value, name: 'guess', label: labels?.value ?? 'Your guess' }, { point: target, name: 'target', label: labels?.target ?? 'Actual location' }].map(({ point, name, label }) => point && (
             <svg key={name} className={`map-marker map-marker--${name}`} style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%`, transform: 'translate(-50%, -100%)' }} viewBox="0 0 24 30" role="img" aria-label={label}>
               <path d="M12 29C10 25 2 17 2 11a10 10 0 0 1 20 0c0 6-8 14-10 18Z" fill="currentColor" stroke="#24171c" strokeWidth="2" />
               <circle cx="12" cy="11" r="4" fill="#24171c" />

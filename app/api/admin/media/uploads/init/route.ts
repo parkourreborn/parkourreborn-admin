@@ -2,11 +2,12 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError } from '@/lib/server/api';
-import { requireAdmin } from '@/lib/server/admin-auth';
+import { assertAllowed, requireAdmin } from '@/lib/server/admin-auth';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { mediaUploadSchema } from '@/lib/server/media-schema';
 import { presignUpload } from '@/lib/server/r2';
 import { createUploadSession } from '@/lib/server/upload-rate-limit';
+import { ownedCan } from '@/lib/policy';
 
 export const runtime = 'nodejs';
 
@@ -28,12 +29,13 @@ const sanitizeBase = (fileName: string) => fileName
 
 export async function POST(request: NextRequest) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.upload');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.contribute');
     const body = mediaUploadSchema.parse(await request.json());
     if (/[\\/\u0000-\u001f]/.test(body.fileName)) return NextResponse.json({ error: 'Unsafe filename' }, { status: 400 });
     const collection = getAdminDb().collection('gifs');
     const current = body.replaceId ? await collection.doc(body.replaceId).get() : null;
     if (body.replaceId && !current?.exists) return NextResponse.json({ error: 'GIF not found' }, { status: 404 });
+    if (current) assertAllowed(ownedCan(admin, 'media', current.data()?.createdBy));
     if ((!body.replaceId || body.replaceId !== body.label) && (await collection.doc(body.label).get()).exists) {
       return NextResponse.json({ error: 'A GIF with that label already exists' }, { status: 409 });
     }

@@ -17,4 +17,22 @@ The protected owner identity is defined server-side as:
 
 No manual Firestore record is required. The first successful Discord sign-in creates or repairs `admins/discord-1020704620722528256` with every permission. Owner status is never read from Firestore and cannot be granted through the dashboard.
 
-Other admins use documents in `admins/{firebaseUid}` with `displayName`, `permissions`, and `disabled`. All Firestore access from the browser is denied; admin data is accessed through authenticated server routes.
+Other admins are added on the Admins page by their Discord user ID. That creates `admins/discord-{id}` with `permissions` and `disabled`; their name shows as the ID until their first sign-in, when the Discord callback stores their Discord name. All Firestore access from the browser is denied; admin data is accessed through authenticated server routes.
+
+## Access levels
+
+Each section has a level: None, View, Contribute and Admin (or View and Manage for shared content like the tech list). Contributors act on their own items; admins act on everyone's. The rules live in `src/lib/policy.ts` and are used by both the API routes and the UI.
+
+Parkour Guessr:
+
+| Action | Your own image | Someone else's |
+|---|---|---|
+| Edit | Contribute. Moving a published image sends it back to review unless you can publish it | Admin |
+| Publish | Contribute + "Publish own images" | Admin |
+| Disable | Contribute | Admin |
+| Restore | Contribute, only if you disabled it | Admin |
+| Delete permanently | Contribute, only if it was never published | Admin |
+
+Uploading, editing, publishing or restoring an image within 50 m (in-game metres, same formula as the game) of another image in the same map, mode and difficulty asks for confirmation first. The server checks this too and answers `409` with `code: "nearby"` until the images are confirmed.
+
+Permission names from before access levels (`guessr.images.*`, `announcements.manage`, `media.upload`, `media.delete`) are translated when an admin loads and rewritten the next time their access is saved.

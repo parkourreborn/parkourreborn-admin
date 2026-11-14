@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
+const openModals: symbol[] = [];
+
 // The hub's dialog: title with a blue rail above a HUD panel.
 export default function Modal({ title, onClose, actions, wide = false, children }: {
   title: string;
@@ -15,12 +17,16 @@ export default function Modal({ title, onClose, actions, wide = false, children 
   useEffect(() => { closeRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
-    const keyboard = (event: KeyboardEvent) => { if (event.key === 'Escape') closeRef.current(); };
+    // With dialogs stacked (a prompt over an editor), Escape only closes the top one.
+    const id = Symbol('modal');
+    openModals.push(id);
+    const keyboard = (event: KeyboardEvent) => { if (event.key === 'Escape' && openModals.at(-1) === id) closeRef.current(); };
     window.addEventListener('keydown', keyboard);
     const root = document.documentElement;
     const overflow = root.style.overflow;
     root.style.overflow = 'hidden';
     return () => {
+      openModals.splice(openModals.indexOf(id), 1);
       window.removeEventListener('keydown', keyboard);
       root.style.overflow = overflow;
     };

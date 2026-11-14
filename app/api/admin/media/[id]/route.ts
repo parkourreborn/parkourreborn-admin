@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError } from '@/lib/server/api';
-import { requireAdmin } from '@/lib/server/admin-auth';
+import { assertAllowed, requireAdmin } from '@/lib/server/admin-auth';
 import { writeAudit } from '@/lib/server/audit';
 import { documentIdSchema } from '@/lib/server/content-sections';
 import { getAdminDb } from '@/lib/server/firebase-admin';
 import { mediaPatchSchema } from '@/lib/server/media-schema';
 import { deleteR2Object, r2ObjectKeyFromPublicUrl } from '@/lib/server/r2';
 import { mediaFromDoc } from '@/lib/server/serializers';
+import { ownedCan } from '@/lib/policy';
 
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, context: Context) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.upload');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.contribute');
     const id = documentIdSchema.parse((await context.params).id);
     const body = mediaPatchSchema.parse(await request.json());
     if (!Object.keys(body).length) return NextResponse.json({ error: 'No changes supplied' }, { status: 400 });
@@ -26,11 +27,13 @@ export async function PATCH(request: NextRequest, context: Context) {
     await db.runTransaction(async (transaction) => {
       const current = await transaction.get(currentRef);
       if (!current.exists) throw new Error('NOT_FOUND');
+      assertAllowed(ownedCan(admin, 'media', current.data()?.createdBy));
       if (nextId !== id && (await transaction.get(nextRef)).exists) throw new Error('CONFLICT');
       previousLink = String(current.data()?.link || current.data()?.publicUrl || '');
       const link = body.link || previousLink;
       const redirect = body.redirect ?? String(current.data()?.redirect || '');
-      transaction.set(nextRef, { link, redirect });
+      const createdBy = current.data()?.createdBy;
+      transaction.set(nextRef, { link, redirect, ...(typeof createdBy === 'string' && createdBy ? { createdBy } : {}) });
       if (nextId !== id) transaction.delete(currentRef);
     });
     if (body.link && body.link !== previousLink) {
@@ -52,12 +55,13 @@ export async function PATCH(request: NextRequest, context: Context) {
 
 export async function DELETE(request: NextRequest, context: Context) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.delete');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'media.contribute');
     const id = documentIdSchema.parse((await context.params).id);
     const ref = getAdminDb().collection('gifs').doc(id);
     const doc = await ref.get();
     if (!doc.exists) return NextResponse.json({ error: 'Media not found' }, { status: 404 });
     const data = doc.data() || {};
+    assertAllowed(ownedCan(admin, 'media', data.createdBy));
     const objectKey = r2ObjectKeyFromPublicUrl(String(data.link || data.publicUrl || ''))
       || (typeof data.objectKey === 'string' && data.objectKey.startsWith('gifs/') ? data.objectKey : null);
     if (objectKey) await deleteR2Object(objectKey, 'gifs/');

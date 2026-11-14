@@ -2,15 +2,15 @@ export const permissions = [
   'overview.view',
   'audit.view',
   'announcements.view',
-  'announcements.manage',
+  'announcements.contribute',
+  'announcements.admin',
   'guessr.view',
-  'guessr.images.create',
-  'guessr.images.edit',
-  'guessr.images.publish',
-  'guessr.images.delete',
+  'guessr.contribute',
+  'guessr.publish',
+  'guessr.admin',
   'media.view',
-  'media.upload',
-  'media.delete',
+  'media.contribute',
+  'media.admin',
   'techs.view',
   'techs.manage',
   'timetrials.view',
@@ -21,6 +21,7 @@ export const permissions = [
   'files.manage',
   'rebornai.view',
   'admins.view',
+  'admins.manage',
 ] as const;
 
 export type Permission = typeof permissions[number];
@@ -54,10 +55,30 @@ export type GuessrImage = {
   difficulty: GuessrDifficulty;
   status: GuessrStatus;
   coordinates: MapPoint;
+  mapVersionId: string;
   createdBy: string;
+  disabledBy: string | null;
+  // True once the image has been live in the game at least once.
+  everPublished: boolean;
+  // Nearby images the uploader confirmed they placed this close to.
+  nearbyAcknowledged: string[];
   createdAt: string | null;
   updatedAt: string | null;
 };
+
+// An image in the same pool (map, mode and difficulty) placed close to another one.
+export type NearbyImage = {
+  id: string;
+  imageUrl: string;
+  coordinates: MapPoint;
+  status: GuessrStatus;
+  createdBy: string;
+  meters: number;
+  level: 'veryClose' | 'close';
+};
+
+// Admin names keyed by Firebase UID, for showing who uploaded or changed something.
+export type People = Record<string, { name: string; avatarUrl: string | null }>;
 
 export type AuditEntry = {
   id: string;
@@ -74,6 +95,7 @@ export type Announcement = {
   message: string;
   active: boolean;
   author: string;
+  createdBy: string;
   createdAt: string | null;
   updatedAt: string | null;
   expiresAt: string | null;
@@ -83,6 +105,7 @@ export type MediaItem = {
   id: string;
   link: string;
   redirect: string;
+  createdBy: string | null;
 };
 
 export type ContentRecord = {

@@ -16,7 +16,7 @@ const maxBytes = 4 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
-    const { admin } = await requireAdmin(request.headers.get('authorization'), 'guessr.images.create');
+    const { admin } = await requireAdmin(request.headers.get('authorization'), 'guessr.contribute');
     const { uploadId } = schema.parse(await request.json());
     const db = getAdminDb();
     const sessionRef = db.collection('rateLimits').doc(`upload-session-guessr-${uploadId}`);
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         difficulty: data.difficulty,
         coordinates: data.coordinates,
         mapVersionId: map.id,
+        ...(Array.isArray(data.nearbyAcknowledged) && data.nearbyAcknowledged.length ? { nearbyAcknowledged: data.nearbyAcknowledged } : {}),
         status: 'draft',
         createdBy: admin.uid,
         createdAt: FieldValue.serverTimestamp(),
@@ -54,7 +55,10 @@ export async function POST(request: NextRequest) {
       });
       transaction.delete(sessionRef);
     });
-    await writeAudit(admin.uid, 'guessr.image.uploaded', uploadId, { mapVersionId: map.id });
+    await writeAudit(admin.uid, 'guessr.image.uploaded', uploadId, {
+      mapVersionId: map.id,
+      ...(Array.isArray(data.nearbyAcknowledged) && data.nearbyAcknowledged.length ? { nearby: data.nearbyAcknowledged } : {}),
+    });
     return NextResponse.json({ image: imageFromDoc(await imageRef.get()) }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid upload session' }, { status: 400 });

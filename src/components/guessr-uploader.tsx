@@ -1,9 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Check, ImagePlus, UploadCloud, X } from 'lucide-react';
 import MapStage from '@/components/map-stage';
+import { NearbyNote, poolDots, poolLabel, useNearbyConfirm } from '@/components/nearby-prompt';
 import { useAuth } from '@/components/auth-provider';
+import type { GuessrLibrary } from '@/components/parkour-guessr';
+import { findNearby, metersToMapPixels, nearbyMeters } from '@/lib/guessr-distance';
 import type { GuessrDifficulty, GuessrMap, GuessrMode, MapPoint } from '@/lib/types';
 
 const maxBytes = 4 * 1024 * 1024;
@@ -30,7 +33,7 @@ const uploadPut = (url: string, file: File, progress: (value: number) => void) =
   request.send(file);
 });
 
-export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: GuessrMap | null; fallbackMap: string; onUploaded: () => void }) {
+export default function GuessrUploader({ map, fallbackMap, library }: { map: GuessrMap | null; fallbackMap: string; library: GuessrLibrary }) {
   const { api, can, setup } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -42,6 +45,11 @@ export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const { run, prompt } = useNearbyConfirm({ map, fallbackMap, people: library.people });
+
+  const pool = useMemo(() => map ? { mapVersionId: map.id, mode, difficulty } : null, [difficulty, map, mode]);
+  const nearby = useMemo(() => pool && point && map ? findNearby(point, pool, library.images, map) : [], [library.images, map, point, pool]);
+  const dots = useMemo(() => pool ? poolDots(library.images, pool, nearby) : [], [library.images, nearby, pool]);
 
   const choose = async (next: File | undefined) => {
     setError('');
@@ -65,12 +73,18 @@ export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: 
     setBusy(true);
     setError('');
     setDone(false);
-    setProgress(1);
+    setProgress(0);
     try {
-      const init = await api('/api/admin/uploads/init', {
-        method: 'POST',
-        body: JSON.stringify({ fileName: file.name, contentType: 'image/webp', bytes: file.size, mode, difficulty, coordinates: point, mapVersionId: map?.id }),
-      });
+      const init = await run(
+        (confirmNearby) => api('/api/admin/uploads/init', {
+          method: 'POST',
+          body: JSON.stringify({ fileName: file.name, contentType: 'image/webp', bytes: file.size, mode, difficulty, coordinates: point, mapVersionId: map?.id, confirmNearby }),
+        }),
+        { imageUrl: preview, point, pool: poolLabel({ mode, difficulty }), action: 'upload' },
+        nearby,
+      );
+      if (!init) return;
+      setProgress(1);
       const initData = await init.json() as { uploadId?: string; uploadUrl?: string; error?: string };
       if (!init.ok || !initData.uploadId || !initData.uploadUrl) throw new Error(initData.error || 'Could not initialize upload');
       await uploadPut(initData.uploadUrl, file, setProgress);
@@ -79,11 +93,12 @@ export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: 
       if (!complete.ok) throw new Error(completeData.error || 'Could not verify upload');
       setDone(true);
       setProgress(100);
+      if (preview) URL.revokeObjectURL(preview);
       setFile(null);
       setPreview('');
       setPoint(null);
       if (inputRef.current) inputRef.current.value = '';
-      onUploaded();
+      await library.reload();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Upload failed');
     } finally {
@@ -91,11 +106,15 @@ export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: 
     }
   };
 
-  const liveReady = Boolean(map && setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.images.create'));
+  const liveReady = Boolean(map && setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.contribute'));
+  const selfPublish = can('guessr.publish');
 
   return (
     <section className="panel panel--pad">
-      <div className="section-head"><h2 className="section-title">New image</h2></div>
+      <div className="section-head">
+        <h2 className="section-title">New image</h2>
+        {!selfPublish && <span className="badge ml-auto" title="A Parkour Guessr administrator publishes your images">Reviewed before publishing</span>}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[0.72fr_1.28fr]">
         <div className="grid content-start gap-4">
@@ -117,14 +136,25 @@ export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: 
             <label className="field-label"><span className="label">Difficulty</span><select className="field" value={difficulty} onChange={(event) => setDifficulty(event.target.value as GuessrDifficulty)}><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
           </div>
 
-          {busy && <div className="progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>}
+          {busy && progress > 0 && <div className="progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>}
           {error && <p className="note note--bad"><X aria-hidden="true" />{error}</p>}
-          {done && <p className="note note--ok"><Check aria-hidden="true" />Uploaded</p>}
-          <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !liveReady}>{busy ? `${progress}%` : liveReady ? 'Upload' : 'Setup required'}</button>
+          {done && <p className="note note--ok"><Check aria-hidden="true" />{selfPublish ? 'Uploaded as a draft' : 'Uploaded. It goes live once a Parkour Guessr administrator publishes it.'}</p>}
+          <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !liveReady}>{busy ? (progress ? `${progress}%` : 'Checking…') : liveReady ? 'Upload' : 'Setup required'}</button>
         </div>
 
-        <MapStage src={map?.url || fallbackMap} width={map?.width || 5688} height={map?.height || 4800} value={point} onChange={setPoint} disabled={!map} />
+        <MapStage
+          src={map?.url || fallbackMap}
+          width={map?.width || 5688}
+          height={map?.height || 4800}
+          value={point}
+          onChange={setPoint}
+          disabled={!map}
+          dots={dots}
+          ring={nearby.length ? metersToMapPixels(nearbyMeters.close) : undefined}
+          footer={<NearbyNote nearby={nearby} />}
+        />
       </div>
+      {prompt}
     </section>
   );
 }
