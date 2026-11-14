@@ -40,11 +40,9 @@ export default function ParkourGuessr() {
 
   return (
     <AccessState permission="guessr.view">
-      <div className="grid gap-6">
-        {mapError && <div className="flex items-start gap-2 border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm text-amber-100" role="alert"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-300" /><span><strong className="block">Guessr map setup error</strong>{mapError} The fallback map is preview-only until exactly one valid Firestore map is active.</span></div>}
-        <GuessrUploader map={map} fallbackMap={fallbackMap} onUploaded={() => setRefreshKey((value) => value + 1)} />
-        <GuessrImages map={map} fallbackMap={fallbackMap} refreshKey={refreshKey} />
-      </div>
+      {mapError && <p className="note note--warn" role="alert"><AlertTriangle aria-hidden="true" />{mapError}</p>}
+      <GuessrUploader map={map} fallbackMap={fallbackMap} onUploaded={() => setRefreshKey((value) => value + 1)} />
+      <GuessrImages map={map} fallbackMap={fallbackMap} refreshKey={refreshKey} />
     </AccessState>
   );
 }

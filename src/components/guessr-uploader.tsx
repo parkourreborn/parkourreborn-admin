@@ -94,34 +94,36 @@ export default function GuessrUploader({ map, fallbackMap, onUploaded }: { map: 
   const liveReady = Boolean(map && setup?.firebaseAdmin && setup.r2 && setup.map && can('guessr.images.create'));
 
   return (
-    <section className="panel p-5 sm:p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="label">New image</p><h3 className="mt-1 font-display text-xl uppercase tracking-wider">Create a draft</h3></div><span className="badge">WebP · max 4 MB</span></div>
+    <section className="panel panel--pad">
+      <div className="section-head"><h2 className="section-title">New image</h2></div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
-        <div className="grid content-start gap-5">
+      <div className="grid gap-4 lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="grid content-start gap-4">
           <button
             type="button"
-            className="group relative grid min-h-64 place-items-center overflow-hidden border border-dashed border-accent/35 bg-accent/[0.035] p-5 text-center hover:border-accent"
+            className="dropzone group min-h-56"
             onClick={() => inputRef.current?.click()}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => { event.preventDefault(); void choose(event.dataTransfer.files[0]); }}
           >
-            {preview ? <><img src={preview} alt="Upload preview" className="absolute inset-0 size-full object-cover" /><span className="absolute inset-0 bg-black/35 opacity-0 transition group-hover:opacity-100" /><span className="relative btn btn-secondary bg-black/75"><ImagePlus className="size-4" /> Replace image</span></> : <span><UploadCloud className="mx-auto mb-4 size-9 text-accent" /><strong className="block font-display text-lg uppercase tracking-wider">Drop an image here</strong><span className="mt-2 block text-sm text-muted">or choose a file</span></span>}
+            {preview
+              ? <><img src={preview} alt="Upload preview" className="absolute inset-0 size-full object-cover" /><span className="absolute inset-0 grid place-items-center bg-black/55 opacity-0 transition group-hover:opacity-100"><span><ImagePlus aria-hidden="true" />Replace</span></span></>
+              : <span><UploadCloud aria-hidden="true" />Drop image</span>}
           </button>
           <input ref={inputRef} type="file" accept="image/*" className="sr-only" onChange={(event) => void choose(event.target.files?.[0])} />
 
-          <div className="grid grid-cols-2 gap-4">
-            <label><span className="label mb-2 block">Mode</span><select className="field" value={mode} onChange={(event) => setMode(event.target.value as GuessrMode)}><option value="classic">Classic</option><option value="graffiti">Graffiti</option></select></label>
-            <label><span className="label mb-2 block">Difficulty</span><select className="field" value={difficulty} onChange={(event) => setDifficulty(event.target.value as GuessrDifficulty)}><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="field-label"><span className="label">Mode</span><select className="field" value={mode} onChange={(event) => setMode(event.target.value as GuessrMode)}><option value="classic">Classic</option><option value="graffiti">Graffiti</option></select></label>
+            <label className="field-label"><span className="label">Difficulty</span><select className="field" value={difficulty} onChange={(event) => setDifficulty(event.target.value as GuessrDifficulty)}><option value="normal">Normal</option><option value="hard">Hard</option></select></label>
           </div>
 
-          {progress > 0 && <div><div className="mb-2 flex justify-between text-sm"><span>{busy ? 'Uploading and verifying' : 'Upload complete'}</span><span className="font-mono">{progress}%</span></div><div className="h-2 overflow-hidden bg-white/[0.06]"><span className="block h-full bg-accent transition-[width]" style={{ width: `${progress}%` }} /></div></div>}
-          {error && <p className="flex items-start gap-2 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200"><X className="mt-0.5 size-4 shrink-0" />{error}</p>}
-          {done && <p className="flex items-center gap-2 border border-emerald-400/25 bg-emerald-400/[0.06] p-3 text-sm text-emerald-200"><Check className="size-4" />Draft created and verified.</p>}
-          <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !liveReady}>{busy ? `Uploading ${progress}%` : liveReady ? 'Upload draft' : 'Upload unavailable — finish setup'}</button>
+          {busy && <div className="progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>}
+          {error && <p className="note note--bad"><X aria-hidden="true" />{error}</p>}
+          {done && <p className="note note--ok"><Check aria-hidden="true" />Uploaded</p>}
+          <button className="btn btn-primary w-full" onClick={() => void upload()} disabled={busy || !file || !point || !liveReady}>{busy ? `${progress}%` : liveReady ? 'Upload' : 'Setup required'}</button>
         </div>
 
-        <div><p className="label mb-2">Map target</p><MapStage src={map?.url || fallbackMap} width={map?.width || 5688} height={map?.height || 4800} value={point} onChange={setPoint} disabled={!map} /></div>
+        <MapStage src={map?.url || fallbackMap} width={map?.width || 5688} height={map?.height || 4800} value={point} onChange={setPoint} disabled={!map} />
       </div>
     </section>
   );

@@ -19,17 +19,17 @@ export default function MapStage({ src, width, height, value, onChange, disabled
   }, []);
 
   return (
-    <div ref={viewerRef} className={fullscreen ? 'flex size-full flex-col bg-[#060a10] p-3 sm:p-5' : ''}>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => mapRef.current?.zoomOut()} aria-label="Zoom out"><Minus className="size-4" /></button>
-        <span className="min-w-16 text-center font-mono text-xs text-muted">{Math.round(zoom * 100)}%</span>
-        <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => mapRef.current?.zoomIn()} aria-label="Zoom in"><Plus className="size-4" /></button>
-        <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => mapRef.current?.reset()}><LocateFixed className="size-4" /> Reset view</button>
-        <button type="button" className="btn btn-secondary !min-h-9 !px-3" onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : viewerRef.current?.requestFullscreen())}>{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />} {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</button>
-        <span className="ml-auto font-mono text-xs text-muted">{value ? `x ${value.x.toFixed(4)} · y ${value.y.toFixed(4)}` : 'No target selected'}</span>
+    <div ref={viewerRef} className={fullscreen ? 'flex size-full flex-col bg-[var(--hub-bg)] p-3 sm:p-5' : ''}>
+      <div className="map-toolbar">
+        <button type="button" className="icon-btn" onClick={() => mapRef.current?.zoomOut()} aria-label="Zoom out" title="Zoom out"><Minus /></button>
+        <span className="time min-w-12 text-center">{Math.round(zoom * 100)}%</span>
+        <button type="button" className="icon-btn" onClick={() => mapRef.current?.zoomIn()} aria-label="Zoom in" title="Zoom in"><Plus /></button>
+        <button type="button" className="icon-btn" onClick={() => mapRef.current?.reset()} aria-label="Reset view" title="Reset view"><LocateFixed /></button>
+        <button type="button" className="icon-btn" onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : viewerRef.current?.requestFullscreen())} aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>{fullscreen ? <Minimize2 /> : <Maximize2 />}</button>
+        {value && <span className="time ml-auto">{value.x.toFixed(4)}, {value.y.toFixed(4)}</span>}
       </div>
       <div
-        className={`relative overflow-hidden border border-line ${fullscreen ? 'min-h-0 flex-1' : 'h-[320px] sm:h-[430px]'} ${disabled ? 'opacity-60' : ''}`}
+        className={`map-frame ${fullscreen ? 'min-h-0 flex-1' : 'h-[320px] sm:h-[430px]'} ${disabled ? 'opacity-60' : ''}`}
         tabIndex={0}
         role="group"
         aria-label="Guess location. Use arrow keys to move the marker, Enter to place it."

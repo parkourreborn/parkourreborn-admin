@@ -10,7 +10,15 @@ export const auditAction = (action: string) => action.replaceAll('.', ' / ').rep
 export const auditTime = (value: string | null) => value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Pending';
 
 export function AuditRows({ entries }: { entries: AuditEntry[] }) {
-  return <div className="divide-y divide-line">{entries.map((entry) => <div className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-center sm:px-5" key={entry.id}><div className="min-w-0"><strong className="block truncate text-sm">{auditAction(entry.action)}</strong><p className="mt-1 truncate font-mono text-[11px] text-muted">{entry.actorUid}{entry.targetId ? ` → ${entry.targetId}` : ''}</p></div><time className="text-xs text-muted">{auditTime(entry.createdAt)}</time></div>)}</div>;
+  return <div className="rows">{entries.map((entry) => (
+    <div className="row" key={entry.id}>
+      <div className="row__main">
+        <span className="row__title">{auditAction(entry.action)}</span>
+        <span className="row__sub mono">{entry.actorUid}{entry.targetId ? ` → ${entry.targetId}` : ''}</span>
+      </div>
+      <time className="time">{auditTime(entry.createdAt)}</time>
+    </div>
+  ))}</div>;
 }
 
 export default function AuditTrail() {
@@ -37,5 +45,16 @@ export default function AuditTrail() {
     return key ? logs.filter((entry) => `${entry.action} ${entry.actorUid} ${entry.targetId || ''}`.toLowerCase().includes(key)) : logs;
   }, [logs, query]);
 
-  return <AccessState permission="audit.view"><div className="mb-4 flex items-center gap-2"><label className="relative min-w-0 flex-1 sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" /><span className="sr-only">Search audit trail</span><input className="field pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search activity" /></label><span className="badge">{visible.length}</span></div>{error && <div className="mb-4 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200">{error}</div>}<section className="panel overflow-hidden"><AuditRows entries={visible} />{!visible.length && <div className="p-10 text-center text-sm text-muted">No activity.</div>}</section></AccessState>;
+  return <AccessState permission="audit.view">
+    {error && <p className="note note--bad">{error}</p>}
+    <section className="panel">
+      <div className="section-head">
+        <h2 className="section-title">Activity</h2>
+        <span className="badge">{visible.length}</span>
+        <label className="search ml-auto max-w-sm"><Search aria-hidden="true" /><span className="sr-only">Search</span><input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" /></label>
+      </div>
+      <AuditRows entries={visible} />
+      {!visible.length && <p className="empty">No activity</p>}
+    </section>
+  </AccessState>;
 }

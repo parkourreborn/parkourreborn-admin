@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Bot, Gauge, HelpCircle, RefreshCw, Search, ThumbsDown, ThumbsUp, X, Zap } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { RefreshCw, Search, ThumbsDown, ThumbsUp } from 'lucide-react';
 import AccessState from '@/components/access-state';
+import Modal from '@/components/modal';
 import { useAuth } from '@/components/auth-provider';
 import type { RebornAiDetail, RebornAiLog, RebornAiReport } from '@/lib/types';
 
@@ -12,7 +12,7 @@ type Filter = 'all' | 'problems' | 'down' | 'cached';
 const filters: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'problems', label: 'Problems' },
-  { key: 'down', label: 'Thumbs down' },
+  { key: 'down', label: '👎' },
   { key: 'cached', label: 'Cached' },
 ];
 
@@ -24,33 +24,24 @@ const isProblem = (log: RebornAiLog) => log.outcome === 'failed' || log.outcome 
 const outcomeClass: Record<string, string> = {
   answered: 'status-active',
   cached: 'status-active',
-  rescued: '!border-amber-400/25 !text-amber-200',
-  failed: '!border-red-400/25 !text-red-300',
+  rescued: 'status-warn',
+  failed: 'status-bad',
   limited: 'status-muted',
 };
 
-function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint?: string }) {
-  return (
-    <div className="panel flex min-w-0 items-center gap-3 p-4">
-      <span className="grid size-9 shrink-0 place-items-center border border-accent/20 bg-accent/[0.08] text-accent"><Icon className="size-4" /></span>
-      <span className="min-w-0">
-        <strong className="block font-display text-2xl leading-none">{value}</strong>
-        <span className="mt-1 block truncate text-xs text-muted">{label}</span>
-        {hint && <span className="block truncate text-[11px] text-slate-500">{hint}</span>}
-      </span>
-    </div>
-  );
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div className="stat"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function Counts({ title, values }: { title: string; values: Record<string, number> }) {
   return (
-    <section className="panel p-4">
-      <h2 className="label mb-3">{title}</h2>
-      <div className="flex flex-wrap gap-2">
+    <section className="panel panel--pad">
+      <div className="section-head"><h2 className="section-title">{title}</h2></div>
+      <div className="meta">
         {Object.entries(values).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
           <span className={`badge ${outcomeClass[name] ?? ''}`} key={name}>{name} · {count}</span>
         ))}
-        {!Object.keys(values).length && <span className="text-sm text-muted">Nothing yet.</span>}
+        {!Object.keys(values).length && <span className="badge">—</span>}
       </div>
     </section>
   );
@@ -77,36 +68,29 @@ function Detail({ id, onClose }: { id: string; onClose: () => void }) {
   }, [api, id]);
 
   const row = (label: string, value: React.ReactNode) => (
-    <div className="grid gap-1 sm:grid-cols-[9rem_1fr]"><span className="label">{label}</span><div className="min-w-0 break-words text-sm">{value}</div></div>
+    <div className="detail-row"><span className="label">{label}</span><div className="min-w-0 break-words text-sm text-[var(--hud-value)]">{value}</div></div>
   );
+  const facts = () => { try { return JSON.stringify(JSON.parse(log?.facts || ''), null, 2); } catch { return log?.facts || '—'; } };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
-      <section className="modal-panel max-w-4xl" role="dialog" aria-modal="true" aria-label="Reborn AI request">
-        <div className="modal-head">
-          <div><span className="label">Request</span><h2 className="font-display text-lg font-semibold uppercase tracking-wider">{log ? when(log.at) : 'Loading…'}</h2></div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close"><X className="size-4" /></button>
-        </div>
-        <div className="grid gap-4 p-4 sm:p-5">
-          {error && <p className="border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200">{error}</p>}
-          {log && <>
-            {row('Question', <strong>{log.question}</strong>)}
-            {row('Answer', <p className="whitespace-pre-wrap text-slate-300">{log.answer || '—'}</p>)}
-            {row('Outcome', <span className="flex flex-wrap gap-2"><span className={`badge ${outcomeClass[log.outcome] ?? ''}`}>{log.outcome}</span><span className="badge">check {log.check}</span>{log.escalated && <span className="badge">full guide</span>}{log.cut && <span className="badge">cut short</span>}{log.guard && <span className="badge">guard {log.guard}</span>}</span>)}
-            {log.error && row('Error', <span className="text-red-200">{log.error}</span>)}
-            {log.feedback && row('Feedback', <span>{log.feedback.vote === 'up' ? '👍' : '👎'} {log.feedback.triage ? `(${log.feedback.triage})` : ''} {log.feedback.note && <em className="text-slate-300">“{log.feedback.note}”</em>}</span>)}
-            {row('Routes', `${log.routes.join(', ') || 'none'} · ${log.handling} · style ${log.style ?? '—'} · ${log.viewer ? 'logged in' : 'anonymous'}`)}
-            {row('Lookups', log.tools.map((tool) => `${tool.name} (${tool.status})`).join(', ') || 'none')}
-            {!!log.chunks.length && row('Guide chunks', <span className="font-mono text-[11px] text-muted">{log.chunks.join(', ')}</span>)}
-            {row('Models', <div className="grid gap-1">{log.models.map((attempt, index) => <span className="font-mono text-xs" key={`${attempt.model}-${index}`}>{attempt.model} → {attempt.result} · {attempt.ms} ms{attempt.status ? ` · ${attempt.status}` : ''}{attempt.detail ? ` · ${attempt.detail}` : ''}</span>)}{!log.models.length && <span className="text-muted">No model call (cached, limited or rescued before writing).</span>}</div>)}
-            {row('Timings', <span className="font-mono text-xs">{Object.entries(log.timings).map(([name, value]) => `${name} ${value}`).join(' · ')}</span>)}
-            {row('Jev', <pre className="max-h-48 overflow-auto whitespace-pre-wrap bg-black/25 p-2 font-mono text-[11px] text-slate-300">{JSON.stringify(log.jev, null, 2)}</pre>)}
-            {row('Entities', <pre className="max-h-40 overflow-auto whitespace-pre-wrap bg-black/25 p-2 font-mono text-[11px] text-slate-300">{JSON.stringify(log.entities, null, 2)}</pre>)}
-            {row('Facts given', <pre className="max-h-80 overflow-auto whitespace-pre-wrap bg-black/25 p-2 font-mono text-[11px] text-slate-300">{log.facts ? (() => { try { return JSON.stringify(JSON.parse(log.facts), null, 2); } catch { return log.facts; } })() : '—'}</pre>)}
-          </>}
-        </div>
-      </section>
-    </div>
+    <Modal wide title={log ? when(log.at) : 'Loading…'} onClose={onClose}>
+      {error && <p className="note note--bad">{error}</p>}
+      {log && <>
+        {row('Question', <strong>{log.question}</strong>)}
+        {row('Answer', <p className="m-0 whitespace-pre-wrap">{log.answer || '—'}</p>)}
+        {row('Outcome', <span className="meta"><span className={`badge ${outcomeClass[log.outcome] ?? ''}`}>{log.outcome}</span><span className="badge">check {log.check}</span>{log.escalated && <span className="badge">full guide</span>}{log.cut && <span className="badge">cut short</span>}{log.guard && <span className="badge">guard {log.guard}</span>}</span>)}
+        {log.error && row('Error', <span className="text-[var(--hub-danger)]">{log.error}</span>)}
+        {log.feedback && row('Feedback', <span>{log.feedback.vote === 'up' ? '👍' : '👎'} {log.feedback.triage ? `(${log.feedback.triage})` : ''} {log.feedback.note && <em>“{log.feedback.note}”</em>}</span>)}
+        {row('Routes', `${log.routes.join(', ') || 'none'} · ${log.handling} · style ${log.style ?? '—'} · ${log.viewer ? 'logged in' : 'anonymous'}`)}
+        {row('Lookups', log.tools.map((tool) => `${tool.name} (${tool.status})`).join(', ') || 'none')}
+        {!!log.chunks.length && row('Guide chunks', <span className="mono text-muted">{log.chunks.join(', ')}</span>)}
+        {row('Models', <div className="grid gap-1">{log.models.map((attempt, index) => <span className="mono" key={`${attempt.model}-${index}`}>{attempt.model} → {attempt.result} · {attempt.ms} ms{attempt.status ? ` · ${attempt.status}` : ''}{attempt.detail ? ` · ${attempt.detail}` : ''}</span>)}{!log.models.length && <span>—</span>}</div>)}
+        {row('Timings', <span className="mono">{Object.entries(log.timings).map(([name, value]) => `${name} ${value}`).join(' · ')}</span>)}
+        {row('Jev', <pre className="code">{JSON.stringify(log.jev, null, 2)}</pre>)}
+        {row('Entities', <pre className="code">{JSON.stringify(log.entities, null, 2)}</pre>)}
+        {row('Facts', <pre className="code !max-h-80">{facts()}</pre>)}
+      </>}
+    </Modal>
   );
 }
 
@@ -151,109 +135,84 @@ export default function RebornAi() {
 
   return (
     <AccessState permission="rebornai.view">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <p className="min-w-0 flex-1 text-sm text-muted">
-          {report ? `Last ${sample} requests${report.since ? ` since ${when(report.since)}` : ''}. Logs are kept 30 days, gaps 60 days.` : 'Loading…'}
-        </p>
-        <button className="btn btn-secondary" onClick={() => void load()} disabled={loading}><RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</button>
-      </div>
-
-      {error && <div className="mb-4 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200">{error}</div>}
+      {error && <p className="note note--bad">{error}</p>}
+      {!report && !error && <p className="empty">Loading</p>}
 
       {report && <>
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6" aria-label="Reborn AI statistics">
-          <Stat icon={Bot} label="Requests" value={String(sample)} hint={`${report.outcomes.failed ?? 0} failed · ${report.outcomes.rescued ?? 0} rescued`} />
-          <Stat icon={Gauge} label="Median time" value={seconds(report.medianMs)} hint={`average ${seconds(report.averageMs)}`} />
-          <Stat icon={Zap} label="From cache" value={percent(report.outcomes.cached ?? 0, sample)} hint={`${percent(report.jevRouted, sample)} routed by Jev`} />
-          <Stat icon={HelpCircle} label="Needed the full guide" value={String(report.escalated)} hint={`${report.gaps.length} knowledge gaps`} />
-          <Stat icon={ThumbsUp} label="Thumbs up" value={String(report.feedback.up)} />
-          <Stat icon={ThumbsDown} label="Thumbs down" value={String(report.feedback.down)} />
+        <section className="stats" aria-label="Reborn AI statistics">
+          <Stat label="Requests" value={String(sample)} />
+          <Stat label="Median" value={seconds(report.medianMs)} />
+          <Stat label="Cached" value={percent(report.outcomes.cached ?? 0, sample)} />
+          <Stat label="Full guide" value={String(report.escalated)} />
+          <Stat label="👍 / 👎" value={`${report.feedback.up} / ${report.feedback.down}`} />
+          <Stat label="Quota" value={report.quota ? `${report.quota.remaining ?? '?'} / ${report.quota.limit ?? '?'}` : '—'} />
         </section>
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr_1fr]">
+        <div className="grid gap-4 md:grid-cols-2">
           <Counts title="Outcomes" values={report.outcomes} />
-          <Counts title="Answer checks" values={report.checks} />
-          <section className="panel p-4">
-            <h2 className="label mb-3">OpenRouter free quota</h2>
-            {report.quota
-              ? <p className="text-sm"><strong className="font-display text-2xl">{report.quota.remaining ?? '?'}</strong> <span className="text-muted">left of {report.quota.limit ?? '?'} today</span></p>
-              : <p className="text-sm text-muted">Unknown. Add the hub&apos;s OPENROUTER_API_KEY to this dashboard&apos;s environment to see it.</p>}
-          </section>
+          <Counts title="Checks" values={report.checks} />
         </div>
 
-        <section className="panel mt-4 overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 sm:px-5">
-            <Bot className="size-4 text-accent" />
-            <h2 className="font-display text-sm font-semibold uppercase tracking-wider">Models</h2>
-            {!!report.configuredModels.length && <span className="ml-auto truncate text-xs text-muted">Order: {report.configuredModels.join(' → ')}</span>}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="data-table min-w-[640px]">
-              <thead><tr><th>Model</th><th>Success</th><th>Tries</th><th>Average</th><th>Failures</th></tr></thead>
+        <section className="panel">
+          <div className="section-head"><h2 className="section-title">Models</h2></div>
+          <div className="table-scroll">
+            <table className="data-table min-w-[600px]">
+              <thead><tr><th>Model</th><th>Success</th><th>Tries</th><th>Avg</th><th>Failures</th></tr></thead>
               <tbody>{report.models.map((model) => (
                 <tr key={model.model}>
-                  <td className="font-mono text-xs">{model.model}</td>
-                  <td><span className={`badge ${model.ok / model.tries >= 0.8 ? 'status-active' : '!border-amber-400/25 !text-amber-200'}`}>{percent(model.ok, model.tries)}</span></td>
+                  <td className="mono !normal-case !tracking-normal">{model.model}</td>
+                  <td><span className={`badge ${model.ok / model.tries >= 0.8 ? 'status-active' : 'status-warn'}`}>{percent(model.ok, model.tries)}</span></td>
                   <td>{model.tries}</td>
                   <td>{seconds(model.averageMs)}</td>
-                  <td className="text-xs text-muted">{Object.entries(model.failures).map(([kind, count]) => `${count} ${kind}`).join(', ') || '—'}</td>
+                  <td className="muted">{Object.entries(model.failures).map(([kind, count]) => `${count} ${kind}`).join(', ') || '—'}</td>
                 </tr>
               ))}</tbody>
             </table>
-            {!report.models.length && <div className="p-8 text-center text-sm text-muted">No model calls logged yet.</div>}
           </div>
+          {!report.models.length && <p className="empty">No model calls</p>}
         </section>
 
-        <section className="panel mt-4 overflow-hidden">
-          <div className="flex items-center gap-3 border-b border-line px-4 py-3 sm:px-5">
-            <AlertTriangle className="size-4 text-amber-300" />
-            <h2 className="font-display text-sm font-semibold uppercase tracking-wider">Knowledge gaps</h2>
-            <span className="ml-auto text-xs text-muted">Questions the guide could not answer. Write or extend knowledge pages for these.</span>
-          </div>
-          <div className="max-h-96 divide-y divide-line overflow-y-auto">
+        <section className="panel">
+          <div className="section-head"><h2 className="section-title">Knowledge gaps</h2><span className="badge">{report.gaps.length}</span></div>
+          <div className="rows max-h-96 overflow-y-auto">
             {report.gaps.map((gap) => (
-              <div className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-center sm:px-5" key={gap.id}>
-                <div className="min-w-0">
-                  <strong className="block text-sm">{gap.question}</strong>
-                  <p className="mt-1 text-xs text-muted">{gap.routes.join(', ') || 'no routes'}{gap.answerable !== null ? ` · answerable ${gap.answerable.toFixed(2)}` : ''}{gap.escalated ? ' · full guide used' : ''}</p>
+              <div className="row" key={gap.id}>
+                <div className="row__main">
+                  <span className="row__title !whitespace-normal">{gap.question}</span>
+                  <span className="row__sub">{gap.routes.join(', ') || 'no routes'}{gap.answerable !== null ? ` · ${gap.answerable.toFixed(2)}` : ''}</span>
                 </div>
-                <time className="text-xs text-muted">{when(gap.at)}</time>
+                <time className="time">{when(gap.at)}</time>
               </div>
             ))}
-            {!report.gaps.length && <div className="p-8 text-center text-sm text-muted">No gaps logged.</div>}
           </div>
+          {!report.gaps.length && <p className="empty">No gaps</p>}
         </section>
 
-        <section className="panel mt-4 overflow-hidden">
-          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-5">
-            <h2 className="mr-2 font-display text-sm font-semibold uppercase tracking-wider">Requests</h2>
-            {filters.map((item) => (
-              <button className={`badge ${filter === item.key ? '!border-accent/40 !text-accent' : ''}`} onClick={() => setFilter(item.key)} key={item.key}>{item.label}</button>
-            ))}
-            <label className="relative ml-auto min-w-0 flex-1 sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-              <span className="sr-only">Search requests</span>
-              <input className="field pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search questions and answers" />
-            </label>
+        <section className="panel">
+          <div className="section-head">
+            <h2 className="section-title">Requests</h2>
+            <div className="tabs">{filters.map((item) => (
+              <button className={filter === item.key ? 'is-on' : ''} onClick={() => setFilter(item.key)} key={item.key}>{item.label}</button>
+            ))}</div>
+            <label className="search ml-auto max-w-xs"><Search aria-hidden="true" /><span className="sr-only">Search</span><input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" /></label>
+            <button className="icon-btn" onClick={() => void load()} disabled={loading} title="Refresh" aria-label="Refresh"><RefreshCw className={loading ? 'animate-spin' : ''} /></button>
           </div>
-          <div className="divide-y divide-line">
+          <div className="rows">
             {visible.map((log) => (
-              <button className="grid w-full gap-1 px-4 py-3 text-left transition hover:bg-white/[0.025] sm:grid-cols-[1fr_auto] sm:items-center sm:px-5" onClick={() => setOpen(log.id)} key={log.id}>
-                <div className="min-w-0">
-                  <strong className="block truncate text-sm">{log.question}</strong>
-                  <p className="mt-1 truncate text-xs text-muted">{log.answer || log.error || '—'}</p>
+              <button className="row" onClick={() => setOpen(log.id)} key={log.id}>
+                <div className="row__main">
+                  <span className="row__title">{log.question}</span>
+                  <span className="row__sub">{log.answer || log.error || '—'}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  {log.feedback && (log.feedback.vote === 'up' ? <ThumbsUp className="size-3.5 text-emerald-300" /> : <ThumbsDown className="size-3.5 text-red-300" />)}
+                <div className="flex shrink-0 items-center gap-2">
+                  {log.feedback && (log.feedback.vote === 'up' ? <ThumbsUp className="size-3.5 text-[#8fe6b4]" /> : <ThumbsDown className="size-3.5 text-[var(--hub-danger)]" />)}
                   <span className={`badge ${outcomeClass[log.outcome] ?? ''}`}>{log.outcome}</span>
-                  {log.check !== 'ok' && log.check !== 'none' && <span className="badge">{log.check}</span>}
-                  <span className="font-mono text-[11px] text-muted">{seconds(log.totalMs)}</span>
-                  <time className="text-xs text-muted">{when(log.at)}</time>
+                  <span className="time hidden sm:inline">{seconds(log.totalMs)} · {when(log.at)}</span>
                 </div>
               </button>
             ))}
-            {!visible.length && <div className="p-10 text-center text-sm text-muted">No requests match.</div>}
           </div>
+          {!visible.length && <p className="empty">No requests</p>}
         </section>
       </>}
 

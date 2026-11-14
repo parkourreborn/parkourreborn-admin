@@ -5,22 +5,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: 'var(--admin-bg)',
-        panel: 'var(--admin-panel)',
-        line: 'var(--admin-line)',
-        accent: 'var(--admin-blue)',
-        muted: 'var(--admin-muted)',
-      },
-      borderColor: {
-        DEFAULT: '#ffffff00',
+        ink: 'var(--hub-bg)',
+        panel: 'var(--hub-panel-bg)',
+        line: 'var(--hud-hairline)',
+        accent: 'var(--hub-blue)',
+        muted: 'var(--hub-muted)',
+        dim: 'var(--hud-dim)',
       },
       fontFamily: {
-        sans: ['Exo 2', 'Arial', 'sans-serif'],
-        display: ['Jura', 'Arial', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
-      },
-      boxShadow: {
-        panel: '0 22px 70px rgba(0, 0, 0, 0.28)',
+        sans: ['var(--font-exo2)', 'Arial', 'sans-serif'],
+        display: ['var(--font-jura)', 'Arial', 'sans-serif'],
+        mono: ['var(--font-plex-mono)', 'monospace'],
+        num: ['var(--font-rajdhani)', 'sans-serif'],
       },
     },
   },

@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Clipboard, Edit3, ImagePlus, Trash2, UploadCloud, X } from 'lucide-react';
+import { Check, Clipboard, Edit3, ImagePlus, Trash2, UploadCloud } from 'lucide-react';
 import AccessState from '@/components/access-state';
+import Modal from '@/components/modal';
 import { useAuth } from '@/components/auth-provider';
 import type { MediaItem } from '@/lib/types';
 
@@ -185,77 +186,76 @@ export default function MediaManager() {
     || !editDraft.label.trim()
     || (editMode === 'upload' ? !editFile || !setup?.r2 : !editDraft.link.trim());
 
+  const accept = '.gif,.png,.jpg,.jpeg,.webp,image/gif,image/png,image/jpeg,image/webp';
+
   return <AccessState permission="media.view">
-    {can('media.upload') && <section className="panel mb-4 p-4 sm:p-5">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2 className="mr-auto font-display text-sm font-semibold uppercase tracking-wider">Add GIF</h2>
-        <div className="flex gap-2" aria-label="GIF source">
-          <button type="button" className={`btn ${sourceMode === 'upload' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSourceMode('upload')}>Upload file</button>
-          <button type="button" className={`btn ${sourceMode === 'url' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSourceMode('url')}>Use GIF URL</button>
+    {can('media.upload') && <section className="panel panel--pad">
+      <div className="section-head">
+        <h2 className="section-title">Add GIF</h2>
+        <div className="tabs ml-auto" aria-label="Source">
+          <button type="button" className={sourceMode === 'upload' ? 'is-on' : ''} onClick={() => setSourceMode('upload')}>File</button>
+          <button type="button" className={sourceMode === 'url' ? 'is-on' : ''} onClick={() => setSourceMode('url')}>URL</button>
         </div>
       </div>
 
-      <div className={`grid gap-4 ${sourceMode === 'upload' ? 'lg:grid-cols-[0.72fr_1.28fr]' : ''}`}>
+      <div className={`grid gap-4 ${sourceMode === 'upload' ? 'md:grid-cols-[0.8fr_1.2fr]' : ''}`}>
         {sourceMode === 'upload' && <>
-          <button type="button" className="group grid min-h-40 place-items-center border border-dashed border-accent/30 bg-accent/[0.035] p-5 text-center hover:border-accent/60" onClick={() => inputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); choose(event.dataTransfer.files[0]); }}>
-            <span><UploadCloud className="mx-auto mb-3 size-7 text-accent" /><strong className="block text-sm">{file ? file.name : 'Drop file or browse'}</strong><span className="mt-1 block text-xs text-muted">GIF, PNG, JPG, WebP · 4 MB</span>{file && <span className="badge mt-3">{bytesLabel(file.size)}</span>}</span>
+          <button type="button" className="dropzone" onClick={() => inputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); choose(event.dataTransfer.files[0]); }}>
+            <span><UploadCloud aria-hidden="true" />{file ? file.name : 'Drop file'}{file && <span className="badge mt-3">{bytesLabel(file.size)}</span>}</span>
           </button>
-          <input ref={inputRef} className="sr-only" type="file" accept=".gif,.png,.jpg,.jpeg,.webp,image/gif,image/png,image/jpeg,image/webp" onChange={(event) => choose(event.target.files?.[0])} />
+          <input ref={inputRef} className="sr-only" type="file" accept={accept} onChange={(event) => choose(event.target.files?.[0])} />
         </>}
 
         <div className="grid content-start gap-3 sm:grid-cols-2">
-          <label><span className="label mb-2 block">Label</span><input className="field" value={label} maxLength={120} onChange={(event) => setLabel(event.target.value)} /></label>
-          {sourceMode === 'url' && <label><span className="label mb-2 block">GIF URL</span><input className="field" type="url" value={link} onChange={(event) => setLink(event.target.value)} /></label>}
-          {sourceMode === 'url' && <label className="sm:col-span-2"><span className="label mb-2 block">Redirect URL</span><input className="field" type="url" value={redirect} onChange={(event) => setRedirect(event.target.value)} /></label>}
-          <div className="flex justify-end sm:col-span-2"><button type="button" className="btn btn-primary" onClick={() => void create()} disabled={createDisabled}><ImagePlus className="size-4" />{busy ? 'Saving…' : sourceMode === 'upload' ? 'Upload GIF' : 'Add GIF'}</button></div>
+          <label className="field-label"><span className="label">Name</span><input className="field" value={label} maxLength={120} onChange={(event) => setLabel(event.target.value)} /></label>
+          {sourceMode === 'url' && <label className="field-label"><span className="label">GIF URL</span><input className="field" type="url" value={link} onChange={(event) => setLink(event.target.value)} /></label>}
+          {sourceMode === 'url' && <label className="field-label sm:col-span-2"><span className="label">Redirect</span><input className="field" type="url" value={redirect} onChange={(event) => setRedirect(event.target.value)} /></label>}
+          <div className="flex justify-end sm:col-span-2"><button type="button" className="btn btn-primary" onClick={() => void create()} disabled={createDisabled}><ImagePlus />{busy ? 'Saving…' : 'Add'}</button></div>
         </div>
       </div>
     </section>}
 
-    {error && !editing && <div className="mb-4 flex items-start gap-2 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200"><X className="mt-0.5 size-4 shrink-0" />{error}</div>}
+    {error && !editing && <p className="note note--bad">{error}</p>}
 
-    <section className="panel overflow-hidden">
-      <div className="flex items-center border-b border-line px-4 py-3 sm:px-5"><h2 className="font-display text-sm font-semibold uppercase tracking-wider">GIF library</h2><span className="badge ml-auto">{items.length}</span></div>
-      <div className="grid gap-px bg-line sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((item) => <article className="min-w-0 bg-[#090e16] p-4" key={item.id}>
-          <div className="flex gap-3">
-            <div className="grid size-16 shrink-0 place-items-center overflow-hidden border border-line bg-black/30"><img className="max-h-full max-w-full object-contain" src={item.link} alt="" /></div>
-            <div className="min-w-0 flex-1">
-              <strong className="block truncate">{item.id}</strong>
-              <p className="mt-1 truncate font-mono text-[11px] text-muted" title={item.link}>{item.link}</p>
-              <p className="mt-2 truncate text-xs text-slate-600" title={item.redirect}>{item.redirect || 'No redirect URL'}</p>
-            </div>
+    <section className="panel">
+      <div className="section-head"><h2 className="section-title">Library</h2><span className="badge">{items.length}</span></div>
+      <div className="grid gap-px bg-[var(--hud-hairline)] sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => <article className="flex min-w-0 items-center gap-3 bg-[var(--hud-panel-bg)] p-3" key={item.id}>
+          <div className="grid size-14 shrink-0 place-items-center overflow-hidden border border-line bg-[var(--hub-media-bg)]"><img className="max-h-full max-w-full object-contain" src={item.link} alt="" /></div>
+          <div className="row__main">
+            <span className="row__title">{item.id}</span>
+            {item.redirect && <span className="row__sub" title={item.redirect}>{item.redirect}</span>}
           </div>
-          <div className="mt-3 flex items-center gap-1">
-            <button type="button" className="icon-btn" onClick={() => void copy(item)} title="Copy GIF URL" aria-label="Copy GIF URL">{copied === item.id ? <Check className="size-4 text-emerald-300" /> : <Clipboard className="size-4" />}</button>
-            {can('media.upload') && <button type="button" className="icon-btn" onClick={() => openEdit(item)} title="Edit" aria-label="Edit"><Edit3 className="size-4" /></button>}
-            {can('media.delete') && <button type="button" className="icon-btn ml-auto text-red-300" onClick={() => void remove(item)} title="Permanently delete" aria-label="Permanently delete"><Trash2 className="size-4" /></button>}
+          <div className="flex shrink-0">
+            <button type="button" className="icon-btn" onClick={() => void copy(item)} title="Copy URL" aria-label="Copy URL">{copied === item.id ? <Check className="text-[#8fe6b4]" /> : <Clipboard />}</button>
+            {can('media.upload') && <button type="button" className="icon-btn" onClick={() => openEdit(item)} title="Edit" aria-label="Edit"><Edit3 /></button>}
+            {can('media.delete') && <button type="button" className="icon-btn icon-btn--danger" onClick={() => void remove(item)} title="Delete" aria-label="Delete"><Trash2 /></button>}
           </div>
         </article>)}
       </div>
-      {!items.length && <div className="p-10 text-center text-sm text-muted">No GIFs.</div>}
+      {!items.length && <p className="empty">No GIFs</p>}
     </section>
 
-    {editing && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target && !busy) setEditing(null); }}>
-      <section className="modal-panel max-w-xl" role="dialog" aria-modal="true" aria-label="Edit GIF">
-        <div className="modal-head"><h2 className="font-display text-lg font-semibold uppercase tracking-wider">Edit GIF</h2><button type="button" className="icon-btn" onClick={() => setEditing(null)} aria-label="Close" disabled={busy}><X className="size-4" /></button></div>
-        <div className="grid gap-4 p-4 sm:p-5">
-          <div className="flex gap-2" aria-label="GIF source">
-            <button type="button" className={`btn ${editMode === 'url' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEditMode('url')}>Use image URL</button>
-            <button type="button" className={`btn ${editMode === 'upload' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEditMode('upload')}>Upload new file</button>
-          </div>
-          <label><span className="label mb-2 block">Label</span><input className="field" value={editDraft.label} maxLength={120} onChange={(event) => setEditDraft((value) => ({ ...value, label: event.target.value }))} /></label>
-          {editMode === 'url' ? <label><span className="label mb-2 block">Image URL</span><input className="field" type="url" value={editDraft.link} onChange={(event) => setEditDraft((value) => ({ ...value, link: event.target.value }))} /></label> : <>
-            <button type="button" className="group grid min-h-32 place-items-center border border-dashed border-accent/30 bg-accent/[0.035] p-4 text-center hover:border-accent/60" onClick={() => editInputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); chooseEdit(event.dataTransfer.files[0]); }}>
-              <span><UploadCloud className="mx-auto mb-2 size-6 text-accent" /><strong className="block text-sm">{editFile ? editFile.name : 'Choose replacement file'}</strong>{editFile && <span className="badge mt-2">{bytesLabel(editFile.size)}</span>}</span>
-            </button>
-            <input ref={editInputRef} className="sr-only" type="file" accept=".gif,.png,.jpg,.jpeg,.webp,image/gif,image/png,image/jpeg,image/webp" onChange={(event) => chooseEdit(event.target.files?.[0])} />
-          </>}
-          {editMode === 'url' && <label><span className="label mb-2 block">Redirect URL</span><input className="field" type="url" value={editDraft.redirect} onChange={(event) => setEditDraft((value) => ({ ...value, redirect: event.target.value }))} /></label>}
-          {error && <div className="flex items-start gap-2 border border-red-400/25 bg-red-400/[0.06] p-3 text-sm text-red-200"><X className="mt-0.5 size-4 shrink-0" />{error}</div>}
-        </div>
-        <div className="modal-actions"><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)} disabled={busy}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => void saveEdit()} disabled={editDisabled}>{busy ? 'Saving…' : 'Save'}</button></div>
-      </section>
-    </div>}
+    {editing && <Modal
+      title={editing.id}
+      onClose={() => { if (!busy) setEditing(null); }}
+      actions={<><button type="button" className="btn btn-secondary" onClick={() => setEditing(null)} disabled={busy}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => void saveEdit()} disabled={editDisabled}>{busy ? 'Saving…' : 'Save'}</button></>}
+    >
+      <div className="tabs" aria-label="Source">
+        <button type="button" className={editMode === 'url' ? 'is-on' : ''} onClick={() => setEditMode('url')}>URL</button>
+        <button type="button" className={editMode === 'upload' ? 'is-on' : ''} onClick={() => setEditMode('upload')}>File</button>
+      </div>
+      <label className="field-label"><span className="label">Name</span><input className="field" value={editDraft.label} maxLength={120} onChange={(event) => setEditDraft((value) => ({ ...value, label: event.target.value }))} /></label>
+      {editMode === 'url' ? <>
+        <label className="field-label"><span className="label">Image URL</span><input className="field" type="url" value={editDraft.link} onChange={(event) => setEditDraft((value) => ({ ...value, link: event.target.value }))} /></label>
+        <label className="field-label"><span className="label">Redirect</span><input className="field" type="url" value={editDraft.redirect} onChange={(event) => setEditDraft((value) => ({ ...value, redirect: event.target.value }))} /></label>
+      </> : <>
+        <button type="button" className="dropzone !min-h-32" onClick={() => editInputRef.current?.click()} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); chooseEdit(event.dataTransfer.files[0]); }}>
+          <span><UploadCloud aria-hidden="true" />{editFile ? editFile.name : 'Drop file'}{editFile && <span className="badge mt-2">{bytesLabel(editFile.size)}</span>}</span>
+        </button>
+        <input ref={editInputRef} className="sr-only" type="file" accept={accept} onChange={(event) => chooseEdit(event.target.files?.[0])} />
+      </>}
+      {error && <p className="note note--bad">{error}</p>}
+    </Modal>}
   </AccessState>;
 }
