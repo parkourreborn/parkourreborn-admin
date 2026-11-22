@@ -6,6 +6,8 @@ import type { Permission } from '@/lib/types';
 const shortText = z.string().trim().max(160);
 const url = z.union([z.literal(''), z.string().trim().url().refine((value) => /^https?:\/\//i.test(value), 'Only HTTP URLs are allowed')]);
 const active = z.boolean();
+const endingVideos = z.object({ Powerslide: url, Jump: url, 'Slide Jump': url, None: url }).partial().strict()
+  .transform((videos) => Object.fromEntries(Object.entries(videos).filter(([, link]) => link)));
 
 const tech = z.object({
   Kind: z.enum(['tech', 'concept', 'basic']),
@@ -13,6 +15,7 @@ const tech = z.object({
   Steps: z.array(z.string().trim().min(1).max(500)).max(80),
   Ending: z.enum(['', 'Powerslide', 'Jump', 'Slide Jump']),
   VideoUrl: url,
+  EndingVideos: endingVideos,
   TutorialUrl: url,
   active,
 }).strict();

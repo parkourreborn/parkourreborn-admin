@@ -15,7 +15,12 @@ const valueText = (value: unknown) => {
   return value === undefined || value === null || value === '' ? '—' : String(value);
 };
 
-function Field({ field, value, onChange }: { field: ContentField; value: unknown; onChange: (value: unknown) => void }) {
+function Field({ field, value, draft, onChange }: { field: ContentField; value: unknown; draft: Record<string, unknown>; onChange: (value: unknown) => void }) {
+  if (field.visible && !field.visible(draft)) return null;
+  if (field.type === 'urls') {
+    const urls = value && typeof value === 'object' ? value as Record<string, string> : {};
+    return <fieldset className="field-label"><legend className="label">{field.label}</legend>{field.options?.filter((option) => !field.hideOption?.(option.value, draft)).map((option) => <label className="field-label" key={option.value}><span className="label">{option.label}</span><input className="field" type="url" value={urls[option.value] ?? ''} onChange={(event) => onChange({ ...urls, [option.value]: event.target.value })} /></label>)}</fieldset>;
+  }
   if (field.type === 'checkbox') {
     return <label className="toggle"><input type="checkbox" checked={value === true} onChange={(event) => onChange(event.target.checked)} /><span>{field.label}</span></label>;
   }
@@ -149,7 +154,10 @@ export default function ContentManager({ section }: { section: ContentManagerCon
         actions={<><button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button><button className="btn btn-primary" onClick={() => void save()} disabled={busy || !recordId.trim()}>{busy ? 'Saving…' : 'Save'}</button></>}
       >
         <label className="field-label"><span className="label">Name</span><input className="field" value={recordId} onChange={(event) => setRecordId(event.target.value)} required /></label>
-        {config.fields.map((field) => <Field field={field} value={draft[field.key]} onChange={(value) => setDraft((current) => ({ ...current, [field.key]: value }))} key={field.key} />)}
+        {config.fields.map((field) => <Field field={field} value={draft[field.key]} draft={draft} onChange={(value) => setDraft((current) => {
+          const next = { ...current, [field.key]: value };
+          return config.normalize ? config.normalize(next, current) : next;
+        })} key={field.key} />)}
         {config.hasStatus && <label className="toggle"><input type="checkbox" checked={draft.active !== false} onChange={(event) => setDraft((current) => ({ ...current, active: event.target.checked }))} /><span>Published</span></label>}
         {error && <p className="note note--bad">{error}</p>}
       </Modal>}

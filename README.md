@@ -19,6 +19,10 @@ No manual Firestore record is required. The first successful Discord sign-in cre
 
 Other admins are added on the Admins page by their Discord user ID. That creates `admins/discord-{id}` with `permissions` and `disabled`; their name shows as the ID until their first sign-in, when the Discord callback stores their Discord name. All Firestore access from the browser is denied; admin data is accessed through authenticated server routes.
 
+## Tech list fields
+
+Each `movement` doc has `Kind`, `Aliases`, `Steps`, `Ending`, `VideoUrl`, `EndingVideos`, `TutorialUrl` and `active`. A tech that ends in coyote time stops its steps at `Coyote Time` and sets `Ending` to its usual ending (`Powerslide`, `Jump` or `Slide Jump`, the one its clip shows). `VideoUrl` is that clip; `EndingVideos` holds optional clips for the other endings (`Powerslide`, `Jump`, `Slide Jump`, `None`), which the tech list shows when a player swaps the ending. Picking an ending in the editor removes old `Powerslide*` / `Jump*` steps, and changing it swaps the clips so `VideoUrl` keeps showing the usual one. `scripts/migrate-tech-list.mjs` in the website repo exports, converts and reimports the whole collection.
+
 ## Access levels
 
 Each section has a level: None, View, Contribute and Admin (or View and Manage for shared content like the tech list). Contributors act on their own items; admins act on everyone's. The rules live in `src/lib/policy.ts` and are used by both the API routes and the UI.

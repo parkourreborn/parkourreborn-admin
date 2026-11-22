@@ -8,3 +8,4 @@ npm-debug.log*
 docs
 scripts
 .env.local
+README.md
