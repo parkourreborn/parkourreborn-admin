@@ -11,6 +11,7 @@ const tech = z.object({
   Kind: z.enum(['tech', 'concept', 'basic']),
   Aliases: z.array(shortText.min(1)).max(40),
   Steps: z.array(z.string().trim().min(1).max(500)).max(80),
+  Ending: z.enum(['', 'Powerslide', 'Jump', 'Slide Jump']),
   VideoUrl: url,
   TutorialUrl: url,
   active,
